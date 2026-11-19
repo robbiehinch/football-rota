@@ -7,10 +7,12 @@ import type { Constraint, ConstraintKind, Settings, Weight } from '../model/type
 interface Props {
   setup: Setup;
   update: (fn: (s: Setup) => Setup) => void;
+  /** Side-panel version: no presets or "always on" list. */
+  compact?: boolean;
 }
 
 const KINDS = Object.keys(KIND_LABELS) as ConstraintKind[];
-const QUICK: ConstraintKind[] = ['gk_plan', 'spells', 'max_on', 'apart', 'together', 'pin'];
+const QUICK: ConstraintKind[] = ['gk_plan', 'spells', 'max_on', 'rotate', 'side_pref', 'apart', 'together', 'pin'];
 
 /** One dropdown per goalkeeper block (each quarter by default). */
 export function GkPlanEditor({ settings, keepers, onChange }: { settings: Settings; keepers: Record<string, string>; onChange: (k: Record<string, string>) => void }) {
@@ -44,7 +46,7 @@ export function GkPlanEditor({ settings, keepers, onChange }: { settings: Settin
   );
 }
 
-export function RulesScreen({ setup, update }: Props) {
+export function RulesScreen({ setup, update, compact }: Props) {
   const [editing, setEditing] = useState<string | null>(null);
   const [adding, setAdding] = useState<ConstraintKind | ''>('');
   const settings = setup.settings;
@@ -64,7 +66,7 @@ export function RulesScreen({ setup, update }: Props) {
   };
 
   const add = (kind: ConstraintKind) => {
-    const existing = kind === 'gk_plan' ? setup.constraints.find((c) => c.kind === 'gk_plan') : undefined;
+    const existing = kind === 'gk_plan' || kind === 'side_pref' ? setup.constraints.find((c) => c.kind === kind) : undefined;
     if (existing) {
       setC(existing.id, { enabled: true });
       setEditing(existing.id);
@@ -77,25 +79,8 @@ export function RulesScreen({ setup, update }: Props) {
     setAdding('');
   };
 
-  return (
-    <section className="screen">
-      <header className="screen-head">
-        <h1>Rules</h1>
-        <p className="muted">
-          <b>Must</b> rules always hold. <b>Try to</b> rules are preferences, traded off by weight.
-        </p>
-      </header>
-
-      <div className="card presets">
-        <h2>Start from a preset</h2>
-        {PRESETS.map((p) => (
-          <button key={p.id} type="button" className="preset" onClick={() => applyPreset(p.id)}>
-            <b>{p.name}</b>
-            <span className="muted small">{p.description}</span>
-          </button>
-        ))}
-      </div>
-
+  const addCard = (
+    <>
       <div className="card">
         <h2>Add a rule</h2>
         <div className="chips">
@@ -121,17 +106,10 @@ export function RulesScreen({ setup, update }: Props) {
         {adding && <p className="muted small">{KIND_HELP[adding]}</p>}
         <p className="muted small">New rules open ready to edit. Tap any rule below to change it.</p>
       </div>
-
-      <div className="card builtins">
-        <h2>Always on</h2>
-        <ul className="plain small">
-          <li>One player in each position, nobody in two places.</li>
-          <li>Only available players, in positions they're allowed to play.</li>
-          <li>Changes only at substitution points ({settings.match.sub_points.join(', ') || 'none'} min).</li>
-          <li>Goalkeeper only changes at {settings.match.gk_change_points.join(', ') || 'no point'} min.</li>
-        </ul>
-      </div>
-
+    </>
+  );
+  const ruleList = (
+    <>
       <ul className="rules">
         {setup.constraints.map((c) => (
           <li key={c.id} className={`rule ${c.enabled ? '' : 'disabled'}`}>
@@ -188,6 +166,56 @@ export function RulesScreen({ setup, update }: Props) {
           </li>
         ))}
       </ul>
+    </>
+  );
+
+  if (compact)
+    return (
+      <section className="rules-panel">
+        <header className="panel-head">
+          <h2>Rules</h2>
+          <p className="muted small">
+            <b>Must</b> always holds; <b>Try to</b> is a preference. Changes apply next time you generate or rebalance.
+          </p>
+        </header>
+        {ruleList}
+        {!setup.constraints.length && <p className="muted small">No rules yet.</p>}
+        {addCard}
+      </section>
+    );
+
+  return (
+    <section className="screen">
+      <header className="screen-head">
+        <h1>Rules</h1>
+        <p className="muted">
+          <b>Must</b> rules always hold. <b>Try to</b> rules are preferences, traded off by weight.
+        </p>
+      </header>
+
+      <div className="card presets">
+        <h2>Start from a preset</h2>
+        {PRESETS.map((p) => (
+          <button key={p.id} type="button" className="preset" onClick={() => applyPreset(p.id)}>
+            <b>{p.name}</b>
+            <span className="muted small">{p.description}</span>
+          </button>
+        ))}
+      </div>
+
+      {addCard}
+
+      <div className="card builtins">
+        <h2>Always on</h2>
+        <ul className="plain small">
+          <li>One player in each position, nobody in two places.</li>
+          <li>Only available players, in positions they're allowed to play.</li>
+          <li>Changes only at substitution points ({settings.match.sub_points.join(', ') || 'none'} min).</li>
+          <li>Goalkeeper only changes at {settings.match.gk_change_points.join(', ') || 'no point'} min.</li>
+        </ul>
+      </div>
+
+      {ruleList}
 
       {!setup.constraints.length && <p className="muted">No rules yet. Pick a preset or add a rule above.</p>}
     </section>
@@ -438,6 +466,50 @@ function Editor({ c, settings, set }: { c: Constraint; settings: Settings; set: 
           <PlayerPicker settings={settings} value={c.players} onChange={(players) => set2({ players })} allLabel="none picked = everyone" />
           <p className="muted small">Only possible if there are substitution points often enough (Match tab).</p>
         </>
+      );
+    case 'rotate':
+      return (
+        <>
+          <PlayerPicker settings={settings} value={c.players} onChange={(players) => set2({ players })} allLabel="none picked = everyone" />
+          <p className="muted small">
+            Applies at every substitution point ({m.sub_points.join(', ') || 'none'} min). The goalkeeper is not moved. If “Position
+            stability” is also on, the two pull against each other: switch that one off or give this a higher weight.
+          </p>
+        </>
+      );
+    case 'side_pref':
+      return (
+        <div className="side-list">
+          {settings.squad
+            .filter((p) => !p.gk_only)
+            .map((p) => {
+              const v = c.sides[p.id] ?? '';
+              const pick = (side: '' | 'L' | 'R') => {
+                const sides = { ...c.sides };
+                if (side) sides[p.id] = side;
+                else delete sides[p.id];
+                set2({ sides });
+              };
+              return (
+                <div key={p.id} className={`side-row ${p.available ? '' : 'faded'}`}>
+                  <span className="side-name">{p.name}</span>
+                  <div className="segmented small" role="group" aria-label={`${p.name} preferred side`}>
+                    {(
+                      [
+                        ['L', 'Left'],
+                        ['', 'Either'],
+                        ['R', 'Right'],
+                      ] as const
+                    ).map(([k, label]) => (
+                      <button key={label} type="button" className={v === k ? 'active' : ''} aria-pressed={v === k} onClick={() => pick(k)}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+        </div>
       );
     case 'pin': {
       const points = [0, ...slotBoundaries(m), total];

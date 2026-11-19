@@ -24,7 +24,16 @@ export interface BuildOptions {
   noise?: (key: string) => number;
   /** Earlier solutions (lists of x variables set to 1) to differ from. */
   exclude?: { ones: string[]; minDiff: number }[];
+  /**
+   * Stay close to this rota: each slot a player spends somewhere other than
+   * where this rota has them costs a little. Kept below any preference's
+   * penalty, so rules come first and closeness only breaks ties.
+   */
+  prefer?: Rota;
 }
+
+/** Cost per changed cell-slot when staying close to a rota (see BuildOptions.prefer). */
+export const CLOSENESS_COST = 0.004;
 
 export interface BuiltModel {
   lp: string;
@@ -305,6 +314,31 @@ export function buildModel(settings: Settings, constraints: Constraint[], opts: 
           if (c.max != null) le(count, c.max, slack(1));
         }
         break;
+      case 'rotate': {
+        const outfield = positions.filter((q) => q.role !== 'GK').map((q) => q.code);
+        for (const p of scopePlayers(c.players, settings, () => true))
+          for (let i = 1; i < windows.length; i++) {
+            const s = slack(1, 1);
+            for (const code of outfield) {
+              const a = x(p.id, i - 1, code);
+              const b = x(p.id, i, code);
+              if (a && b) le(terms([[a, 1], [b, 1]]), 1, s);
+            }
+          }
+        break;
+      }
+      case 'side_pref':
+        for (const [pid, side] of Object.entries(c.sides)) {
+          if (!pIndex.has(pid)) continue;
+          for (const w of windows) {
+            const wrong = sumX(pid, w.index, (code) => sideOf(code) !== 'C' && sideOf(code) !== side);
+            if (!wrong.size) continue;
+            if (c.mode === 'hard') le(wrong, 0, null);
+            // Soft: cost per slot played on the wrong side (no slack variable needed).
+            else for (const [v] of wrong) lp.cost(v, w8 * (w.minutes / len));
+          }
+        }
+        break;
       case 'max_on': {
         const k = Math.floor(c.maxMinutes / len) + 1;
         for (const p of scopePlayers(c.players, settings, () => true))
@@ -321,6 +355,14 @@ export function buildModel(settings: Settings, constraints: Constraint[], opts: 
   const allX: string[] = [];
   for (const p of avail) for (const w of windows) for (const code of allowed.get(p.id)!) allX.push(x(p.id, w.index, code)!);
   if (opts.noise && !opts.feasibilityOnly) for (const v of allX) lp.cost(v, opts.noise(v));
+  if (opts.prefer && !opts.feasibilityOnly)
+    for (const p of avail)
+      for (const w of windows)
+        for (const code of allowed.get(p.id)!) {
+          let differ = 0;
+          for (let s = w.from; s < w.to; s++) if (opts.prefer[s]?.[code] !== p.id) differ++;
+          if (differ) lp.cost(x(p.id, w.index, code)!, CLOSENESS_COST * differ);
+        }
   for (const ex of opts.exclude ?? []) {
     const ones = ex.ones.filter((v) => lp.has(v));
     lp.row(terms(ones.map((v) => [v, 1] as [string, number])), '<=', ones.length - ex.minDiff);

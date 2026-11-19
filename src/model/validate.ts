@@ -344,6 +344,40 @@ export function validate(rota: Rota, settings: Settings, constraints: Constraint
         }
         break;
       }
+      case 'rotate': {
+        const subsOpen = new Set(m.sub_points);
+        for (const p of scopePlayers(c.players, settings, () => true)) {
+          const stuck: number[] = [];
+          for (let s = 1; s < n; s++) {
+            if (!subsOpen.has(s * len)) continue;
+            const a = tl[p.id]?.[s - 1];
+            if (a && a === tl[p.id]?.[s] && roleOf(positions, a) !== 'GK') stuck.push(s);
+          }
+          if (stuck.length)
+            add(`${p.name} stays in the same position through the sub at ${stuck.map((s) => `${s * len} (${tl[p.id]![s]})`).join(', ')} min.`, stuck.length, {
+              players: [p.id],
+              slots: stuck,
+            });
+        }
+        break;
+      }
+      case 'side_pref':
+        for (const [pid, side] of Object.entries(c.sides)) {
+          const p = byId.get(pid);
+          if (!p?.available) continue;
+          const wrong: number[] = [];
+          for (let s = 0; s < n; s++) {
+            const code = tl[pid]?.[s];
+            const sd = code ? positions.find((q) => q.code === code)?.side : null;
+            if (sd && sd !== 'C' && sd !== side) wrong.push(s);
+          }
+          add(
+            `${p.name} plays ${wrong.length * len} min on the ${side === 'L' ? 'right' : 'left'} (prefers ${side === 'L' ? 'left' : 'right'}).`,
+            wrong.length,
+            { players: [pid], slots: wrong },
+          );
+        }
+        break;
       case 'pin': {
         const p = byId.get(c.player);
         if (!p) break;

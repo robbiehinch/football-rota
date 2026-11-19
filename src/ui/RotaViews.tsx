@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { minutesColors, textOn } from '../model/colors';
 import { substitutions } from '../model/subs';
 import { ROLE_NAMES, slotCount } from '../model/match';
@@ -15,6 +15,8 @@ interface GraphProps {
   onHighlight?: (id: string | null) => void;
   breaks?: Break[];
   selected?: CellRef | null;
+  /** Locked cells ("slot|playerId"), shown with a padlock. */
+  locked?: Set<string>;
   onCell?: (cell: CellRef) => void;
   onDropCell?: (from: CellRef, to: CellRef) => void;
 }
@@ -26,7 +28,7 @@ export function shownPlayers(rota: Rota, settings: Settings) {
 }
 
 /** Rows = players, columns = time. Cells show the position code, coloured by group. */
-export function RotationGraph({ rota, settings, highlight, onHighlight, breaks = [], selected, onCell, onDropCell }: GraphProps) {
+export function RotationGraph({ rota, settings, highlight, onHighlight, breaks = [], selected, locked, onCell, onDropCell }: GraphProps) {
   const m = settings.match;
   const n = slotCount(m);
   const stats = useMemo(() => playerStats(rota, settings), [rota, settings]);
@@ -87,16 +89,18 @@ export function RotationGraph({ rota, settings, highlight, onHighlight, breaks =
                   const code = st?.timeline[s] ?? null;
                   const mark = marks.get(`${p.id}:${s}`);
                   const isSel = selected?.player === p.id && selected.slot === s;
+                  const isLocked = locked?.has(`${s}|${p.id}`) ?? false;
                   const cls = [
                     'cell',
                     code ? 'on' : 'off',
                     s % perQuarter === 0 && s ? 'q-start' : '',
                     mark ? `mark-${mark}` : '',
                     isSel ? 'selected' : '',
+                    isLocked ? 'locked' : '',
                     onCell ? 'editable' : '',
                   ].join(' ');
                   const style = code ? { background: bg, color: textOn(bg) } : undefined;
-                  const label = `${p.name}, ${s * m.slot_length_min}–${(s + 1) * m.slot_length_min} min: ${code ?? 'off'}`;
+                  const label = `${p.name}, ${s * m.slot_length_min}–${(s + 1) * m.slot_length_min} min: ${code ?? 'off'}${isLocked ? ' (locked)' : ''}`;
                   return (
                     <td key={s} className={cls} style={style}>
                       {onCell ? (
@@ -412,3 +416,20 @@ export function SubsList({ rota, settings, highlight, onHighlight }: Omit<GraphP
   );
 }
 
+
+/** Screen title with an optional "Rules" button (phones: opens the rules drawer). */
+export function ScreenHead({ title, children, openRules }: { title: string; children?: ReactNode; openRules?: { label: string; open: () => void } }) {
+  return (
+    <header className="screen-head">
+      <div className="head-row">
+        <h1>{title}</h1>
+        {openRules && (
+          <button type="button" className="btn small rules-btn no-print" onClick={openRules.open}>
+            {openRules.label}
+          </button>
+        )}
+      </div>
+      {children}
+    </header>
+  );
+}

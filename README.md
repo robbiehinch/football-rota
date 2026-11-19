@@ -13,9 +13,10 @@ including the solver, runs in the browser, and the setup is saved in `localStora
 |---|---|
 | **Squad** | Players, group colour, available today, GK allowed, GK only, allowed positions |
 | **Match** | Quarters, quarter and slot length, substitution points, goalkeeper change points, and **who's in goal** for each block (or let the app choose) |
-| **Rules** | The constraint list: quick-add buttons, an Edit button on every rule, *Must* (hard) or *Try to* (soft, Low/Medium/High), presets. Rules include goalkeeper plan, times on the pitch (number of spells) and max time on in a row |
-| **Options** | Up to 5 distinct rotas, best first, each with Rotation / By time / Subs / Shifts views. Cells are coloured by each player's total minutes (with a key). The Subs view lists every change, who comes on for whom and who moves, and flags mid-quarter subs. *Shuffle* gives a different set. If nothing fits, it lists the rules that clash |
-| **Edit** | Tap two cells in a column to swap (or drag on a computer); put a player in a position or on the bench; live red/amber checks; undo |
+| **Rules** | The constraint list: quick-add buttons, an Edit button on every rule, *Must* (hard) or *Try to* (soft, Low/Medium/High), presets. Rules include goalkeeper plan, times on the pitch (number of spells), max time on in a row, rotate positions (change position at each sub when staying on) and preferred side (left/right per player) |
+| **Rules panel** | On wide screens the rules sit in a panel down the right of every screen; on phones a "Rules" button opens them as a side drawer |
+| **Options** | Up to 5 distinct rotas, best first, each with Rotation / By time / Subs / Shifts views. Cells are coloured by each player's total minutes (with a key). The Subs view lists every change, who comes on for whom and who moves, and flags mid-quarter subs. *Shuffle* gives a different set. If nothing fits, it lists the rules that clash. *How many rotas fit?* counts them in the background: exact when it finishes, otherwise a lower bound |
+| **Edit** | Tap two cells in a column to swap (or drag on a computer); put a player in a position or on the bench. Moved cells are locked (padlock) and the rest of the rota **rebalances** against the rules, changing as little as possible; lock or unlock any cell; live red/amber checks; undo |
 | **Share** | WhatsApp text (optionally with a SUBS line at each change), PNG of the rotation graph, print view with the substitutions, export/import the setup as JSON |
 
 On first open the app loads the coaches' current rota ([`rota.json`](rota.json)) with the
@@ -55,6 +56,7 @@ src/model/     pure domain code (no UI)
   io.ts           import/export in the rota.json shape
   edit.ts         swap / place helpers used by the Edit screen
   subs.ts         who comes on / goes off / moves at each change
+  locks.ts        locked cells -> pins for rebalancing
   colors.ts       colour players by total minutes
 src/solver/    pure solver module
   model.ts        builds the integer program (CPLEX LP text)
@@ -84,6 +86,10 @@ validator's score exactly, and a test checks this.
   minutes within 5 min of each other · Jake only plays in goal · Goalkeeper only
   changes at 10/20/30 min"*. Simple cases (too few players, nobody allowed in goal)
   get a direct message.
+- **Rebalance:** locked cells become pins, and a small cost on every cell that differs from the
+  current rota keeps changes to a minimum (it is smaller than any preference, so rules come first).
+- **Counting:** lists rotas one at a time, each required to differ from all earlier ones, in a
+  separate worker. It is exact if it runs out of rotas within the time limit, otherwise a lower bound.
 - **Time budget:** if a weighted solve is slow, generation stops after about
   8 seconds and returns the options it has found so far.
 
