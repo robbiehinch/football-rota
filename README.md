@@ -13,7 +13,7 @@ including the solver, runs in the browser, and the setup is saved in `localStora
 |---|---|
 | **Squad** | Players, group colour, available today, GK allowed, GK only, allowed positions |
 | **Match** | Quarters, quarter and slot length, substitution points, goalkeeper change points, and **who's in goal** for each block (or let the app choose) |
-| **Rules** | The constraint list: quick-add buttons, an Edit button on every rule, *Must* (hard) or *Try to* (soft, Low/Medium/High), presets. Rules include goalkeeper plan, times on the pitch (number of spells) and max time on in a row |
+| **Rules** | The constraint list: quick-add buttons, an Edit button on every rule, *Must* (hard) or *Try to* (soft, Low/Medium/High), presets. Rules include goalkeeper plan, times on the pitch (number of spells), max time on in a row, rotate positions (change position at each sub when staying on) and preferred side (left/right per player) |
 | **Options** | Up to 5 distinct rotas, best first, each with Rotation / By time / Subs / Shifts views. Cells are coloured by each player's total minutes (with a key). The Subs view lists every change, who comes on for whom and who moves, and flags mid-quarter subs. *Shuffle* gives a different set. If nothing fits, it lists the rules that clash |
 | **Edit** | Tap two cells in a column to swap (or drag on a computer); put a player in a position or on the bench; live red/amber checks; undo |
 | **Share** | WhatsApp text (optionally with a SUBS line at each change), PNG of the rotation graph, print view with the substitutions, export/import the setup as JSON |

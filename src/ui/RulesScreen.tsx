@@ -10,7 +10,7 @@ interface Props {
 }
 
 const KINDS = Object.keys(KIND_LABELS) as ConstraintKind[];
-const QUICK: ConstraintKind[] = ['gk_plan', 'spells', 'max_on', 'apart', 'together', 'pin'];
+const QUICK: ConstraintKind[] = ['gk_plan', 'spells', 'max_on', 'rotate', 'side_pref', 'apart', 'together', 'pin'];
 
 /** One dropdown per goalkeeper block (each quarter by default). */
 export function GkPlanEditor({ settings, keepers, onChange }: { settings: Settings; keepers: Record<string, string>; onChange: (k: Record<string, string>) => void }) {
@@ -64,7 +64,7 @@ export function RulesScreen({ setup, update }: Props) {
   };
 
   const add = (kind: ConstraintKind) => {
-    const existing = kind === 'gk_plan' ? setup.constraints.find((c) => c.kind === 'gk_plan') : undefined;
+    const existing = kind === 'gk_plan' || kind === 'side_pref' ? setup.constraints.find((c) => c.kind === kind) : undefined;
     if (existing) {
       setC(existing.id, { enabled: true });
       setEditing(existing.id);
@@ -438,6 +438,50 @@ function Editor({ c, settings, set }: { c: Constraint; settings: Settings; set: 
           <PlayerPicker settings={settings} value={c.players} onChange={(players) => set2({ players })} allLabel="none picked = everyone" />
           <p className="muted small">Only possible if there are substitution points often enough (Match tab).</p>
         </>
+      );
+    case 'rotate':
+      return (
+        <>
+          <PlayerPicker settings={settings} value={c.players} onChange={(players) => set2({ players })} allLabel="none picked = everyone" />
+          <p className="muted small">
+            Applies at every substitution point ({m.sub_points.join(', ') || 'none'} min). The goalkeeper is not moved. If “Position
+            stability” is also on, the two pull against each other: switch that one off or give this a higher weight.
+          </p>
+        </>
+      );
+    case 'side_pref':
+      return (
+        <div className="side-list">
+          {settings.squad
+            .filter((p) => !p.gk_only)
+            .map((p) => {
+              const v = c.sides[p.id] ?? '';
+              const pick = (side: '' | 'L' | 'R') => {
+                const sides = { ...c.sides };
+                if (side) sides[p.id] = side;
+                else delete sides[p.id];
+                set2({ sides });
+              };
+              return (
+                <div key={p.id} className={`side-row ${p.available ? '' : 'faded'}`}>
+                  <span className="side-name">{p.name}</span>
+                  <div className="segmented small" role="group" aria-label={`${p.name} preferred side`}>
+                    {(
+                      [
+                        ['L', 'Left'],
+                        ['', 'Either'],
+                        ['R', 'Right'],
+                      ] as const
+                    ).map(([k, label]) => (
+                      <button key={label} type="button" className={v === k ? 'active' : ''} aria-pressed={v === k} onClick={() => pick(k)}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+        </div>
       );
     case 'pin': {
       const points = [0, ...slotBoundaries(m), total];

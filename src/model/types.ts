@@ -141,6 +141,17 @@ export interface MaxOn extends Base {
   players: string[];
 }
 
+export interface Rotate extends Base {
+  kind: 'rotate';
+  /** Empty = all available players. */
+  players: string[];
+}
+export interface SidePref extends Base {
+  kind: 'side_pref';
+  /** Player id -> preferred side. Players not listed have no preference. */
+  sides: Record<string, 'L' | 'R'>;
+}
+
 export type Constraint =
   | EvenTime
   | MinutesRange
@@ -156,7 +167,9 @@ export type Constraint =
   | Pin
   | GkPlan
   | Spells
-  | MaxOn;
+  | MaxOn
+  | Rotate
+  | SidePref;
 
 export type ConstraintKind = Constraint['kind'];
 

@@ -584,6 +584,31 @@ select:focus-visible {
   width: 100%;
 }
 
+.side-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 8px 0;
+}
+.side-row {
+  display: grid;
+  grid-template-columns: 76px 1fr;
+  align-items: center;
+  gap: 8px;
+}
+.side-row .segmented {
+  margin: 2px 0;
+}
+.side-row.faded {
+  opacity: 0.5;
+}
+.side-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Options */
 .option-head {
   display: flex;

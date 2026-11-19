@@ -17,6 +17,8 @@ export const KIND_LABELS: Record<ConstraintKind, string> = {
   gk_plan: 'Goalkeeper plan',
   spells: 'Times on the pitch',
   max_on: 'Max time on in a row',
+  rotate: 'Rotate positions',
+  side_pref: 'Preferred side',
 };
 
 export const KIND_HELP: Record<ConstraintKind, string> = {
@@ -35,6 +37,8 @@ export const KIND_HELP: Record<ConstraintKind, string> = {
   gk_plan: 'Choose who goes in goal in each goalkeeper block (e.g. each quarter). Leave a block blank to let the app choose.',
   spells: 'How many separate times each player comes on, e.g. at most 2 spells each.',
   max_on: 'Nobody plays more than N minutes without a break.',
+  rotate: 'A player who stays on through a substitution point moves to a different outfield position (e.g. LD → RD).',
+  side_pref: 'Keep players on the side of the pitch they prefer (left or right).',
 };
 
 export const WEIGHT_LABELS: Record<Weight, string> = { low: 'Low', medium: 'Medium', high: 'High' };
@@ -81,6 +85,10 @@ export function newConstraint(kind: ConstraintKind, settings: Settings): Constra
       return { ...base(), kind, min: 1, max: 2, players: [] };
     case 'max_on':
       return { ...base(), kind, maxMinutes: settings.match.quarter_length_min * 2, players: [] };
+    case 'rotate':
+      return { ...base('soft', 'medium'), kind, players: [] };
+    case 'side_pref':
+      return { ...base('soft', 'medium'), kind, sides: {} };
   }
 }
 
@@ -174,6 +182,18 @@ export function describeConstraint(c: Constraint, settings: Settings): string {
         ? `${who}: no more than ${c.maxMinutes} min on the pitch in a row`
         : `Nobody plays more than ${c.maxMinutes} min in a row`;
     }
+    case 'rotate': {
+      const who = c.players.length ? names(settings, c.players) : 'Players';
+      return `${who} staying on change position at every sub`;
+    }
+    case 'side_pref': {
+      const left = Object.entries(c.sides).filter(([, v]) => v === 'L').map(([id]) => id);
+      const right = Object.entries(c.sides).filter(([, v]) => v === 'R').map(([id]) => id);
+      const parts = [];
+      if (left.length) parts.push(`${names(settings, left)} on the left`);
+      if (right.length) parts.push(`${names(settings, right)} on the right`);
+      return parts.length ? `Keep ${parts.join('; ')}` : 'No side preferences set yet';
+    }
     case 'pin': {
       const where = c.position === 'BENCH' ? 'on the bench' : c.position === 'ON' ? 'on the pitch' : `in ${c.position}`;
       return `${n(c.player)} ${where} ${c.from}–${c.to} min`;
@@ -192,6 +212,10 @@ export function referencedPlayers(c: Constraint): string[] {
       return c.players;
     case 'gk_plan':
       return Object.values(c.keepers).filter(Boolean);
+    case 'rotate':
+      return c.players;
+    case 'side_pref':
+      return Object.keys(c.sides);
     case 'together':
     case 'apart':
       return [c.a, c.b];
