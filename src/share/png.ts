@@ -1,4 +1,4 @@
-import { groupColor, textOn } from '../model/colors';
+import { minutesColors, textOn } from '../model/colors';
 import { slotCount } from '../model/match';
 import { playerStats } from '../model/stats';
 import type { Rota, Settings } from '../model/types';
@@ -12,6 +12,7 @@ export function drawRotationGraph(rota: Rota, settings: Settings, title = 'Match
   const n = slotCount(m);
   const stats = playerStats(rota, settings);
   const players = settings.squad.filter((p) => p.available || (stats[p.id]?.total ?? 0) > 0);
+  const colors = minutesColors(Object.fromEntries(players.map((p) => [p.id, stats[p.id]?.total ?? 0])));
   const W = 1080;
   const pad = 36;
   const nameW = 230;
@@ -47,7 +48,7 @@ export function drawRotationGraph(rota: Rota, settings: Settings, title = 'Match
     for (let s = 0; s < n; s++) {
       const x = pad + nameW + s * cellW;
       const code = line[s];
-      const bg = code ? groupColor(p.group) : '#e5e7eb';
+      const bg = code ? colors.byPlayer[p.id] : '#e5e7eb';
       g.fillStyle = bg;
       g.fillRect(x + 3, y + 6, cellW - 6, rowH - 12);
       g.fillStyle = code ? textOn(bg) : '#9ca3af';
@@ -72,9 +73,20 @@ export function drawRotationGraph(rota: Rota, settings: Settings, title = 'Match
     g.lineTo(x, headH + rowH * players.length);
     g.stroke();
   }
+  // Key: colour = minutes played
+  let kx = pad;
+  g.font = 'bold 28px system-ui, sans-serif';
+  for (const k of colors.key) {
+    g.fillStyle = k.color;
+    g.fillRect(kx, H - 58, 28, 28);
+    g.fillStyle = '#111827';
+    const label = `${k.minutes} min`;
+    g.fillText(label, kx + 38, H - 44);
+    kx += 38 + g.measureText(label).width + 30;
+  }
   g.fillStyle = '#6b7280';
   g.font = '26px system-ui, sans-serif';
-  g.fillText('Thick lines = quarter breaks · grey = on the bench', pad, H - 40);
+  g.fillText('grey = bench · thick lines = quarters', kx, H - 44);
   return canvas;
 }
 

@@ -36,7 +36,10 @@ export function SquadScreen({ setup, update }: Props) {
       settings: { ...s.settings, squad: s.settings.squad.filter((x) => x.id !== p.id) },
       constraints: s.constraints
         .filter((c) => !(['together', 'apart', 'pin'].includes(c.kind) && referencedPlayers(c).includes(p.id)))
-        .map((c) => ('players' in c ? { ...c, players: c.players.filter((id) => id !== p.id) } : c)),
+        .map((c) => ('players' in c ? { ...c, players: c.players.filter((id) => id !== p.id) } : c))
+        .map((c) =>
+          c.kind === 'gk_plan' ? { ...c, keepers: Object.fromEntries(Object.entries(c.keepers).map(([k, v]) => [k, v === p.id ? '' : v])) } : c,
+        ),
       rota: s.rota?.map((slot) => Object.fromEntries(Object.entries(slot).map(([k, v]) => [k, v === p.id ? null : v]))) ?? null,
     }));
   };

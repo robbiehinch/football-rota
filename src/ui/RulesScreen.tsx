@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
-import { describeConstraint, KIND_HELP, KIND_LABELS, newConstraint, PRESETS, WEIGHT_LABELS } from '../model/constraints';
+import { describeConstraint, gkBlocks, KIND_HELP, KIND_LABELS, newConstraint, PRESETS, WEIGHT_LABELS } from '../model/constraints';
 import type { Setup } from '../model/io';
-import { quarterBreaks, slotBoundaries, totalMinutes } from '../model/match';
+import { canPlayGk, quarterBreaks, slotBoundaries, totalMinutes } from '../model/match';
 import type { Constraint, ConstraintKind, Settings, Weight } from '../model/types';
 
 interface Props {
@@ -10,6 +10,39 @@ interface Props {
 }
 
 const KINDS = Object.keys(KIND_LABELS) as ConstraintKind[];
+const QUICK: ConstraintKind[] = ['gk_plan', 'spells', 'max_on', 'apart', 'together', 'pin'];
+
+/** One dropdown per goalkeeper block (each quarter by default). */
+export function GkPlanEditor({ settings, keepers, onChange }: { settings: Settings; keepers: Record<string, string>; onChange: (k: Record<string, string>) => void }) {
+  const keepersList = settings.squad.filter((p) => p.available && canPlayGk(p, settings.positions));
+  return (
+    <div className="gk-plan">
+      {gkBlocks(settings.match).map((b) => {
+        const value = keepers[String(b.start)] ?? '';
+        const chosen = settings.squad.find((p) => p.id === value);
+        const options = chosen && !keepersList.includes(chosen) ? [...keepersList, chosen] : keepersList;
+        return (
+          <label key={b.start} className="gk-row">
+            <span className="gk-time">
+              {b.start}–{b.end}′
+            </span>
+            <select value={value} onChange={(e) => onChange({ ...keepers, [String(b.start)]: e.target.value })}>
+              <option value="">App chooses</option>
+              {options.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                  {p.available ? '' : ' (not playing)'}
+                  {!canPlayGk(p, settings.positions) ? ' (not ticked GK)' : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+        );
+      })}
+      {!keepersList.length && <p className="warn-text small">Nobody available is ticked for GK on the Squad tab.</p>}
+    </div>
+  );
+}
 
 export function RulesScreen({ setup, update }: Props) {
   const [editing, setEditing] = useState<string | null>(null);
@@ -31,6 +64,13 @@ export function RulesScreen({ setup, update }: Props) {
   };
 
   const add = (kind: ConstraintKind) => {
+    const existing = kind === 'gk_plan' ? setup.constraints.find((c) => c.kind === 'gk_plan') : undefined;
+    if (existing) {
+      setC(existing.id, { enabled: true });
+      setEditing(existing.id);
+      setAdding('');
+      return;
+    }
     const c = newConstraint(kind, settings);
     update((s) => ({ ...s, constraints: [...s.constraints, c] }));
     setEditing(c.id);
@@ -54,6 +94,32 @@ export function RulesScreen({ setup, update }: Props) {
             <span className="muted small">{p.description}</span>
           </button>
         ))}
+      </div>
+
+      <div className="card">
+        <h2>Add a rule</h2>
+        <div className="chips">
+          {QUICK.map((k) => (
+            <button key={k} type="button" className="chip" onClick={() => add(k)}>
+              + {KIND_LABELS[k]}
+            </button>
+          ))}
+        </div>
+        <div className="add-row">
+          <select value={adding} onChange={(e) => setAdding(e.target.value as ConstraintKind)} aria-label="Rule to add">
+            <option value="">All rule types…</option>
+            {KINDS.map((k) => (
+              <option key={k} value={k}>
+                {KIND_LABELS[k]}
+              </option>
+            ))}
+          </select>
+          <button type="button" className="btn" disabled={!adding} onClick={() => adding && add(adding)}>
+            Add
+          </button>
+        </div>
+        {adding && <p className="muted small">{KIND_HELP[adding]}</p>}
+        <p className="muted small">New rules open ready to edit. Tap any rule below to change it.</p>
       </div>
 
       <div className="card builtins">
@@ -82,6 +148,11 @@ export function RulesScreen({ setup, update }: Props) {
                 </span>
                 <span className="rule-desc">{describeConstraint(c, settings)}</span>
               </button>
+              {editing !== c.id && (
+                <button type="button" className="btn ghost small edit-btn" onClick={() => setEditing(c.id)} aria-label={`Edit ${KIND_LABELS[c.kind]}`}>
+                  Edit
+                </button>
+              )}
             </div>
             {editing === c.id && (
               <div className="rule-edit">
@@ -118,20 +189,7 @@ export function RulesScreen({ setup, update }: Props) {
         ))}
       </ul>
 
-      <div className="add-row">
-        <select value={adding} onChange={(e) => setAdding(e.target.value as ConstraintKind)} aria-label="Rule to add">
-          <option value="">Add a rule…</option>
-          {KINDS.map((k) => (
-            <option key={k} value={k}>
-              {KIND_LABELS[k]}
-            </option>
-          ))}
-        </select>
-        <button type="button" className="btn" disabled={!adding} onClick={() => adding && add(adding)}>
-          Add
-        </button>
-      </div>
-      {adding && <p className="muted small">{KIND_HELP[adding]}</p>}
+      {!setup.constraints.length && <p className="muted">No rules yet. Pick a preset or add a rule above.</p>}
     </section>
   );
 }
@@ -349,6 +407,38 @@ function Editor({ c, settings, set }: { c: Constraint; settings: Settings; set: 
         </>
       );
     }
+    case 'gk_plan':
+      return (
+        <>
+          <GkPlanEditor settings={settings} keepers={c.keepers} onChange={(keepers) => set2({ keepers })} />
+          <p className="muted small">Goalkeeper blocks come from the goalkeeper change points on the Match tab.</p>
+        </>
+      );
+    case 'spells':
+      return (
+        <>
+          <div className="grid2">
+            <Field label="At least (times on)">
+              <CountInput value={c.min} onChange={(v) => set2({ min: v })} max={slotBoundaries(m).length + 1} />
+            </Field>
+            <Field label="At most (times on)">
+              <CountInput value={c.max} onChange={(v) => set2({ max: v })} max={slotBoundaries(m).length + 1} />
+            </Field>
+          </div>
+          <PlayerPicker settings={settings} value={c.players} onChange={(players) => set2({ players })} allLabel="none picked = everyone" />
+          <p className="muted small">A “time on” is one continuous spell on the pitch, however long.</p>
+        </>
+      );
+    case 'max_on':
+      return (
+        <>
+          <Field label="Longest time on the pitch in a row">
+            <MinutesInput value={c.maxMinutes} onChange={(v) => set2({ maxMinutes: v ?? step })} step={step} max={total} />
+          </Field>
+          <PlayerPicker settings={settings} value={c.players} onChange={(players) => set2({ players })} allLabel="none picked = everyone" />
+          <p className="muted small">Only possible if there are substitution points often enough (Match tab).</p>
+        </>
+      );
     case 'pin': {
       const points = [0, ...slotBoundaries(m), total];
       return (

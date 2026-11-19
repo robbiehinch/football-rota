@@ -5,7 +5,7 @@ import { slotCount, windowsFor } from '../model/match';
 import { emptyRota, timelines } from '../model/stats';
 import type { Rota } from '../model/types';
 import { hardBreaks, softBreaks, validate } from '../model/validate';
-import { BreakList, ByTime, RotationGraph, Shifts, ViewTabs, type CellRef, type ViewKind } from './RotaViews';
+import { BreakList, ByTime, MinutesKeyView, RotationGraph, Shifts, SubsList, ViewTabs, type CellRef, type ViewKind } from './RotaViews';
 
 interface Props {
   setup: Setup;
@@ -108,7 +108,9 @@ export function EditScreen({ setup, setRota, goOptions }: Props) {
           onHighlight={setHighlight}
         />
       )}
+      {view === 'graph' && <MinutesKeyView rota={rota} settings={settings} />}
       {view === 'time' && <ByTime rota={rota} settings={settings} highlight={highlight} onHighlight={setHighlight} />}
+      {view === 'subs' && <SubsList rota={rota} settings={settings} highlight={highlight} onHighlight={setHighlight} />}
       {view === 'shifts' && <Shifts rota={rota} settings={settings} highlight={highlight} onHighlight={setHighlight} />}
 
       {selected && view === 'graph' && (

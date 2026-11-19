@@ -12,11 +12,11 @@ including the solver, runs in the browser, and the setup is saved in `localStora
 | Screen | What it does |
 |---|---|
 | **Squad** | Players, group colour, available today, GK allowed, GK only, allowed positions |
-| **Match** | Quarters, quarter and slot length, substitution points, goalkeeper change points |
-| **Rules** | The constraint list: switch on/off, *Must* (hard) or *Try to* (soft, Low/Medium/High), presets |
-| **Options** | Up to 5 distinct rotas, best first, each with Rotation / By time / Shifts views. *Shuffle* gives a different set. If nothing fits, it lists the rules that clash |
+| **Match** | Quarters, quarter and slot length, substitution points, goalkeeper change points, and **who's in goal** for each block (or let the app choose) |
+| **Rules** | The constraint list: quick-add buttons, an Edit button on every rule, *Must* (hard) or *Try to* (soft, Low/Medium/High), presets. Rules include goalkeeper plan, times on the pitch (number of spells) and max time on in a row |
+| **Options** | Up to 5 distinct rotas, best first, each with Rotation / By time / Subs / Shifts views. Cells are coloured by each player's total minutes (with a key). The Subs view lists every change, who comes on for whom and who moves, and flags mid-quarter subs. *Shuffle* gives a different set. If nothing fits, it lists the rules that clash |
 | **Edit** | Tap two cells in a column to swap (or drag on a computer); put a player in a position or on the bench; live red/amber checks; undo |
-| **Share** | WhatsApp text (copy or open WhatsApp), PNG of the rotation graph, print view, export/import the setup as JSON |
+| **Share** | WhatsApp text (optionally with a SUBS line at each change), PNG of the rotation graph, print view with the substitutions, export/import the setup as JSON |
 
 On first open the app loads the coaches' current rota ([`rota.json`](rota.json)) with the
 **Coaches' current rules** preset.
@@ -54,6 +54,8 @@ src/model/     pure domain code (no UI)
   validate.ts     validate(rota, settings, constraints) -> list of breaks
   io.ts           import/export in the rota.json shape
   edit.ts         swap / place helpers used by the Edit screen
+  subs.ts         who comes on / goes off / moves at each change
+  colors.ts       colour players by total minutes
 src/solver/    pure solver module
   model.ts        builds the integer program (CPLEX LP text)
   solve.ts        generate(): options, ranking, shuffle, conflict explanation
