@@ -1,4 +1,5 @@
 import { describeConstraint } from '../model/constraints';
+import { isLockPin } from '../model/locks';
 import { allowedPositions, formatMinuteList, gkCodes } from '../model/match';
 import type { Break, Constraint, Rota, Settings } from '../model/types';
 import { hardBreaks, scoreBreaks, validate } from '../model/validate';
@@ -37,6 +38,8 @@ export interface GenerateOptions {
   timeLimit?: number;
   /** Rough overall time budget in seconds; once spent, return the options found so far. */
   budget?: number;
+  /** Rebalance: stay as close as possible to this rota (rules still come first). */
+  prefer?: Rota;
 }
 
 const NOISE_BUDGET = 0.1;
@@ -113,7 +116,7 @@ export function generate(highs: HighsLike, settings: Settings, constraints: Cons
     ];
     for (const { cs, diff, limit, strict: isStrict } of attempts) {
       if (isStrict && !tryStrict) continue;
-      const model = buildModel(settings, cs, { noise, exclude: exclude.map((e) => ({ ...e, minDiff: diff })) });
+      const model = buildModel(settings, cs, { noise, prefer: opts.prefer, exclude: exclude.map((e) => ({ ...e, minDiff: diff })) });
       const res = run(highs, model.lp, limit, seed ? { mip_abs_gap: NOISE_BUDGET } : {});
       if (res.Status.startsWith('Error')) return { status: 'error', message: `The solver failed: ${res.Status}` };
       if (!hasSolution(res)) {
@@ -186,7 +189,8 @@ function candidateRules(settings: Settings, constraints: Constraint[]): Conflict
   // rule a coach wants to change, and relaxing them all makes the search slow.
   // Rules earlier in this list are tried (and dropped from the answer) first.
   for (const c of constraints)
-    if (c.enabled && c.mode === 'hard') items.push({ key: c.id, label: describeConstraint(onlyAvailable(c, settings), settings) });
+    if (c.enabled && c.mode === 'hard')
+      items.push({ key: c.id, label: (isLockPin(c.id) ? 'Locked: ' : '') + describeConstraint(onlyAvailable(c, settings), settings) });
   for (const p of restricted.filter((p) => p.gk_only)) items.push({ key: `builtin:allowed:${p.id}`, label: describeAllowed(p) });
   items.push({ key: 'builtin:gk_fixed', label: `Goalkeeper only changes at ${formatMinuteList(m.gk_change_points) || 'no point'} min` });
   items.push({ key: 'builtin:subs', label: `Subs only at ${formatMinuteList(m.sub_points) || 'no point'} min` });
@@ -223,4 +227,52 @@ export function explain(highs: HighsLike, settings: Settings, constraints: Const
     if (feasible(keep) !== false) keep.add(item.key);
   }
   return items.filter((i) => keep.has(i.key));
+}
+
+export interface CountOptions {
+  /** Stop after this many rotas. */
+  limit?: number;
+  /** Stop after this many seconds. */
+  budget?: number;
+  /** Count only rotas that also meet every preference ("Try to" rule). */
+  includePreferences?: boolean;
+  onProgress?: (count: number) => void;
+}
+
+export interface CountResult {
+  count: number;
+  /** True when every rota was found (not stopped by the limit or time). */
+  exact: boolean;
+  stoppedBy?: 'limit' | 'time';
+  ms: number;
+  error?: string;
+}
+
+/**
+ * Count distinct rotas that meet the rules by enumerating them one at a time,
+ * each new one required to differ from all before it. Exact when it finishes;
+ * otherwise a lower bound.
+ */
+export function countRotas(highs: HighsLike, settings: Settings, constraints: Constraint[], opts: CountOptions = {}): CountResult {
+  const started = Date.now();
+  const limit = opts.limit ?? 1000;
+  const budget = opts.budget ?? 10;
+  const elapsed = () => (Date.now() - started) / 1000;
+  if (precheck(settings)) return { count: 0, exact: true, ms: 0 };
+  const cs = opts.includePreferences ? constraints.map((c) => (c.mode === 'soft' ? { ...c, mode: 'hard' as const } : c)) : constraints;
+  const exclude: NonNullable<BuildOptions['exclude']> = [];
+  let count = 0;
+  for (;;) {
+    if (count >= limit) return { count, exact: false, stoppedBy: 'limit', ms: Date.now() - started };
+    const left = budget - elapsed();
+    if (left <= 0) return { count, exact: false, stoppedBy: 'time', ms: Date.now() - started };
+    const model = buildModel(settings, cs, { feasibilityOnly: true, exclude });
+    const res = run(highs, model.lp, Math.max(0.5, left));
+    if (res.Status === 'Infeasible') return { count, exact: true, ms: Date.now() - started };
+    if (!hasSolution(res)) return { count, exact: false, stoppedBy: 'time', ms: Date.now() - started };
+    const { ones } = model.decode(res.Columns as Record<string, { Primal: number }>);
+    exclude.push({ ones, minDiff: 1 });
+    count++;
+    if (count % 10 === 0) opts.onProgress?.(count);
+  }
 }

@@ -24,7 +24,16 @@ export interface BuildOptions {
   noise?: (key: string) => number;
   /** Earlier solutions (lists of x variables set to 1) to differ from. */
   exclude?: { ones: string[]; minDiff: number }[];
+  /**
+   * Stay close to this rota: each slot a player spends somewhere other than
+   * where this rota has them costs a little. Kept below any preference's
+   * penalty, so rules come first and closeness only breaks ties.
+   */
+  prefer?: Rota;
 }
+
+/** Cost per changed cell-slot when staying close to a rota (see BuildOptions.prefer). */
+export const CLOSENESS_COST = 0.004;
 
 export interface BuiltModel {
   lp: string;
@@ -346,6 +355,14 @@ export function buildModel(settings: Settings, constraints: Constraint[], opts: 
   const allX: string[] = [];
   for (const p of avail) for (const w of windows) for (const code of allowed.get(p.id)!) allX.push(x(p.id, w.index, code)!);
   if (opts.noise && !opts.feasibilityOnly) for (const v of allX) lp.cost(v, opts.noise(v));
+  if (opts.prefer && !opts.feasibilityOnly)
+    for (const p of avail)
+      for (const w of windows)
+        for (const code of allowed.get(p.id)!) {
+          let differ = 0;
+          for (let s = w.from; s < w.to; s++) if (opts.prefer[s]?.[code] !== p.id) differ++;
+          if (differ) lp.cost(x(p.id, w.index, code)!, CLOSENESS_COST * differ);
+        }
   for (const ex of opts.exclude ?? []) {
     const ones = ex.ones.filter((v) => lp.has(v));
     lp.row(terms(ones.map((v) => [v, 1] as [string, number])), '<=', ones.length - ex.minDiff);

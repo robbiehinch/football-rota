@@ -43,3 +43,14 @@ export function placePlayer(rota: Rota, player: string, code: string | null, slo
   }
   return next;
 }
+
+/** Cells (player, slot) whose position or bench status differs between two rotas. */
+export function movedCells(a: Rota, b: Rota): CellRef[] {
+  const out: CellRef[] = [];
+  a.forEach((slotA, s) => {
+    const slotB = b[s] ?? {};
+    const players = new Set([...Object.values(slotA), ...Object.values(slotB)].filter((v): v is string => !!v));
+    for (const player of players) if (positionOf(slotA, player) !== positionOf(slotB, player)) out.push({ player, slot: s });
+  });
+  return out;
+}

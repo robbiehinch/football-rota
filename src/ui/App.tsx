@@ -22,6 +22,17 @@ const ICONS: Record<Tab, ReactNode> = {
 };
 const LABELS: Record<Tab, string> = { squad: 'Squad', match: 'Match', rules: 'Rules', options: 'Options', edit: 'Edit', share: 'Share' };
 
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const on = () => setMatches(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, [query]);
+  return matches;
+}
+
 export function App() {
   const [setup, setSetup] = usePersistentSetup();
   const [tab, setTab] = useState<Tab>('options');
@@ -43,26 +54,47 @@ export function App() {
   };
 
   const chooseRota = (rota: Rota) => {
-    update((s) => ({ ...s, rota }));
+    update((s) => ({ ...s, rota, locks: [] }));
     setTab('edit');
     window.scrollTo({ top: 0 });
   };
 
   const go = (t: Tab) => {
     setTab(t);
+    setDrawer(false);
     window.scrollTo({ top: 0 });
   };
 
+  // Rules down the side: always beside the rota on wide screens; a slide-in drawer on phones.
+  const wide = useMediaQuery('(min-width: 960px)');
+  const [drawer, setDrawer] = useState(false);
+  const sideRules = tab !== 'rules';
+  const enabledRules = setup.constraints.filter((c) => c.enabled).length;
+  const openRules = wide ? undefined : { label: `Rules (${enabledRules})`, open: () => setDrawer(true) };
+
   return (
-    <div className="app">
+    <div className={`app ${wide && sideRules ? 'with-side' : ''}`}>
+      {sideRules && (wide || drawer) && (
+        <>
+          {!wide && <div className="drawer-backdrop no-print" onClick={() => setDrawer(false)} />}
+          <aside className={`side-rules no-print ${wide ? '' : 'drawer'}`} aria-label="Rules">
+            {!wide && (
+              <button type="button" className="icon-btn drawer-close" aria-label="Close rules" onClick={() => setDrawer(false)}>
+                ✕
+              </button>
+            )}
+            <RulesScreen setup={setup} update={update} compact />
+          </aside>
+        </>
+      )}
       <main className="main">
         {tab === 'squad' && <SquadScreen setup={setup} update={update} />}
         {tab === 'match' && <MatchScreen setup={setup} update={update} />}
         {tab === 'rules' && <RulesScreen setup={setup} update={update} />}
         {tab === 'options' && (
-          <OptionsScreen setup={setup} run={run} stale={run.inputKey !== inputKey} onGenerate={generate} onUse={chooseRota} goRules={() => go('rules')} />
+          <OptionsScreen openRules={openRules} setup={setup} run={run} stale={run.inputKey !== inputKey} onGenerate={generate} onUse={chooseRota} goRules={() => go('rules')} />
         )}
-        {tab === 'edit' && <EditScreen setup={setup} setRota={(rota) => update((s) => ({ ...s, rota }))} goOptions={() => go('options')} />}
+        {tab === 'edit' && <EditScreen openRules={openRules} setup={setup} update={update} goOptions={() => go('options')} />}
         {tab === 'share' && <ShareScreen setup={setup} replace={(s) => setSetup(s)} goOptions={() => go('options')} />}
       </main>
       <nav className="tabbar no-print" aria-label="Screens">

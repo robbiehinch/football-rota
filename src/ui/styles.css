@@ -703,6 +703,28 @@ select:focus-visible {
   border-radius: 10px;
   margin-bottom: 8px;
 }
+.status-line.busy {
+  background: var(--off);
+  color: var(--text);
+}
+.notice.good {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.edit-options .check {
+  margin: 4px 0;
+}
+.picker-actions {
+  margin-top: 6px;
+}
+.lock-inline {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  vertical-align: -1px;
+  background: no-repeat center / contain
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='4' y='10' width='16' height='12' rx='2' fill='%235b6b62'/%3E%3Cpath d='M8 10V7a4 4 0 0 1 8 0v3' fill='none' stroke='%235b6b62' stroke-width='3'/%3E%3C/svg%3E");
+}
 .status-line.good {
   background: var(--accent-soft);
   color: var(--accent);
@@ -838,6 +860,24 @@ select:focus-visible {
 }
 .cell.mark-soft {
   box-shadow: inset 0 0 0 2px var(--soft);
+}
+.cell {
+  position: relative;
+}
+.cell.locked::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 9px;
+  height: 9px;
+  pointer-events: none;
+  background: no-repeat center / contain
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='4' y='10' width='16' height='12' rx='2' fill='%23111827'/%3E%3Cpath d='M8 10V7a4 4 0 0 1 8 0v3' fill='none' stroke='%23111827' stroke-width='3'/%3E%3C/svg%3E");
+  filter: drop-shadow(0 0 1px #fff);
+}
+.cell.locked {
+  box-shadow: inset 0 0 0 2px rgb(17 24 39 / 0.55);
 }
 .cell.selected {
   box-shadow: inset 0 0 0 3px var(--text);
@@ -1100,6 +1140,84 @@ select:focus-visible {
   font-weight: 600;
   z-index: 20;
   max-width: calc(100% - 32px);
+}
+
+.head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.rules-btn {
+  flex: none;
+}
+.count-card summary {
+  cursor: pointer;
+  min-height: 28px;
+}
+.count-card p {
+  margin: 8px 0 0;
+}
+
+/* Rules side panel / drawer */
+.side-rules {
+  background: var(--card);
+  border-left: 1px solid var(--border);
+  padding: 16px 14px calc(var(--tabbar-h) + 24px);
+  overflow-y: auto;
+}
+.app.with-side .side-rules {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 380px;
+  z-index: 5;
+}
+.app.with-side .main {
+  margin-right: 380px;
+  max-width: none;
+}
+.app.with-side .main > .screen {
+  max-width: 720px;
+  margin: 0 auto;
+}
+.side-rules.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(92vw, 400px);
+  z-index: 30;
+  box-shadow: -8px 0 24px rgb(0 0 0 / 0.2);
+  padding-bottom: 24px;
+}
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgb(0 0 0 / 0.35);
+  z-index: 29;
+}
+.drawer-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+.rules-panel .panel-head {
+  margin-bottom: 10px;
+  padding-right: 36px;
+}
+.rules-panel .panel-head h2 {
+  font-size: 1.2rem;
+}
+.rules-panel .panel-head p {
+  margin: 0;
+}
+.rules-panel .rule {
+  padding: 8px 10px;
+}
+.rules-panel .card {
+  margin-top: 12px;
 }
 
 /* Tab bar */

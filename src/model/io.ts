@@ -43,6 +43,8 @@ export interface Setup {
   settings: Settings;
   constraints: Constraint[];
   rota: Rota | null;
+  /** Locked cells on the current rota ("slot|playerId"). */
+  locks?: string[];
 }
 
 function guessSide(code: string): Position['side'] {
