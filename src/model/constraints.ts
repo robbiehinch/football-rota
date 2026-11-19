@@ -10,7 +10,7 @@ export const KIND_LABELS: Record<ConstraintKind, string> = {
   position_stability: 'Position stability',
   max_bench: 'Max time on the bench',
   start_finish: 'Play in both halves',
-  together: 'Play together',
+  together: 'Always together',
   apart: 'Keep apart',
   group_mix: 'Group mix',
   pin: 'Pin',
@@ -19,6 +19,8 @@ export const KIND_LABELS: Record<ConstraintKind, string> = {
   max_on: 'Max time on in a row',
   rotate: 'Rotate positions',
   side_pref: 'Preferred side',
+  min_subs: 'Substitutions',
+  together_time: 'Time together',
 };
 
 export const KIND_HELP: Record<ConstraintKind, string> = {
@@ -30,7 +32,7 @@ export const KIND_HELP: Record<ConstraintKind, string> = {
   position_stability: 'Keep position changes during a spell on the pitch to a minimum.',
   max_bench: 'Nobody sits out more than N minutes in a row.',
   start_finish: 'Everyone plays at least once in the first half and once in the second.',
-  together: 'Two players are on the pitch at the same time.',
+  together: 'Two players are always on and off at the same time (strict). For “some time together”, use Time together.',
   apart: 'Two players are never on the pitch at the same time.',
   group_mix: 'At least / at most N players from a group on the pitch at all times.',
   pin: 'Fix a cell, e.g. Jake in goal 0–10, or Martha starts on the bench.',
@@ -39,6 +41,8 @@ export const KIND_HELP: Record<ConstraintKind, string> = {
   max_on: 'Nobody plays more than N minutes without a break.',
   rotate: 'A player who stays on through a substitution point moves to a different outfield position (e.g. LD → RD).',
   side_pref: 'Keep players on the side of the pitch they prefer. Set each player’s side (L / R) on the Squad tab.',
+  min_subs: 'Bring on at least N players at every substitution point. As a “Try to” rule with a high N, it makes as many substitutions as the other rules allow.',
+  together_time: 'Chosen players share the pitch for at least N minutes in total.',
 };
 
 export const WEIGHT_LABELS: Record<Weight, string> = { low: 'Low', medium: 'Medium', high: 'High' };
@@ -89,6 +93,10 @@ export function newConstraint(kind: ConstraintKind, settings: Settings): Constra
       return { ...base('soft', 'medium'), kind, players: [] };
     case 'side_pref':
       return { ...base('soft', 'medium'), kind };
+    case 'min_subs':
+      return { ...base('soft', 'medium'), kind, perPoint: 3 };
+    case 'together_time':
+      return { ...base(), kind, players: [], minMinutes: settings.match.quarter_length_min };
   }
 }
 
@@ -198,6 +206,14 @@ export function describeConstraint(c: Constraint, settings: Settings): string {
       if (right.length) parts.push(`${names(settings, right)} on the right`);
       return parts.length ? `Keep ${parts.join('; ')}` : 'No sides set yet (set L / R on the Squad tab)';
     }
+    case 'min_subs':
+      return c.mode === 'soft' && c.perPoint >= 3
+        ? `As many substitutions as possible (aim: ${c.perPoint} players on at each sub)`
+        : `At least ${c.perPoint} player${c.perPoint === 1 ? '' : 's'} come${c.perPoint === 1 ? 's' : ''} on at each sub`;
+    case 'together_time':
+      return c.players.length < 2
+        ? 'Pick at least two players'
+        : `${names(settings, c.players)} on the pitch together for at least ${c.minMinutes} min`;
     case 'pin': {
       const where = c.position === 'BENCH' ? 'on the bench' : c.position === 'ON' ? 'on the pitch' : `in ${c.position}`;
       return `${n(c.player)} ${where} ${c.from}–${c.to} min`;
@@ -219,7 +235,10 @@ export function referencedPlayers(c: Constraint): string[] {
     case 'rotate':
       return c.players;
     case 'side_pref':
+    case 'min_subs':
       return [];
+    case 'together_time':
+      return c.players;
     case 'together':
     case 'apart':
       return [c.a, c.b];

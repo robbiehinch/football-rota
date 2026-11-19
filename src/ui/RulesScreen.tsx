@@ -13,7 +13,7 @@ interface Props {
 
 /** Rule types offered when adding (group mix is kept only for older setups). */
 const KINDS = (Object.keys(KIND_LABELS) as ConstraintKind[]).filter((k) => k !== 'group_mix');
-const QUICK: ConstraintKind[] = ['gk_plan', 'spells', 'max_on', 'rotate', 'side_pref', 'apart', 'together', 'pin'];
+const QUICK: ConstraintKind[] = ['gk_plan', 'min_subs', 'together_time', 'spells', 'max_on', 'rotate', 'side_pref', 'apart', 'pin'];
 
 /** One dropdown per goalkeeper block (each quarter by default). */
 export function GkPlanEditor({ settings, keepers, onChange }: { settings: Settings; keepers: Record<string, string>; onChange: (k: Record<string, string>) => void }) {
@@ -497,6 +497,36 @@ function Editor({ c, settings, set }: { c: Constraint; settings: Settings; set: 
         </div>
       );
     }
+    case 'min_subs':
+      return (
+        <>
+          <Field label="Players coming on at each sub">
+            <select value={c.perPoint} onChange={(e) => set2({ perPoint: +e.target.value })}>
+              {Array.from({ length: settings.positions.length }, (_, i) => i + 1).map((k) => (
+                <option key={k} value={k}>
+                  {k}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <p className="muted small">
+            Applies at every substitution point ({m.sub_points.join(', ') || 'none'} min). To <b>maximise</b> substitutions, keep it as{' '}
+            <b>Try to</b> and pick a high number (3–5): the app then brings on as many players as your other rules allow. Maximising takes
+            the app longer (a few seconds) to work out. The number is capped at how many players are on the bench.
+          </p>
+        </>
+      );
+    case 'together_time':
+      return (
+        <>
+          <PlayerPicker settings={settings} value={c.players} onChange={(players) => set2({ players })} allLabel="pick two or more" />
+          <Field label="On the pitch together for at least">
+            <MinutesInput value={c.minMinutes} onChange={(v) => set2({ minMinutes: v ?? step })} step={step} max={total} />
+          </Field>
+          {c.players.length < 2 && <p className="warn-text small">Pick at least two players.</p>}
+          {c.players.length > settings.positions.length && <p className="warn-text small">More players than positions can't all be on together.</p>}
+        </>
+      );
     case 'pin': {
       const points = [0, ...slotBoundaries(m), total];
       return (

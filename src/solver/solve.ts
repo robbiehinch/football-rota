@@ -58,6 +58,32 @@ const hasSolution = (r: { Status: string; Columns: Record<string, { Primal?: num
   ((r.Status === 'Time limit reached' || r.Status === 'Bound on objective reached') &&
     Object.values(r.Columns).some((c) => typeof c.Primal === 'number'));
 
+/**
+ * True when every preference's score comes in whole numbers: minute amounts
+ * are counted in slots, so minute settings must be multiples of the slot length.
+ */
+function integerScores(constraints: Constraint[], settings: Settings): boolean {
+  const len = settings.match.slot_length_min;
+  const whole = (v: number | null | undefined) => v == null || v % len === 0;
+  return constraints.every((c) => {
+    if (!c.enabled || c.mode === 'hard') return true;
+    switch (c.kind) {
+      case 'even_time':
+        return whole(c.maxDiff);
+      case 'minutes':
+        return whole(c.min) && whole(c.max);
+      case 'role_balance':
+        return whole(c.minDef) && whole(c.minAtt);
+      case 'gk_share':
+        return whole(c.minEach) && whole(c.evenWithin);
+      case 'together_time':
+        return whole(c.minMinutes);
+      default:
+        return true;
+    }
+  });
+}
+
 /** Small deterministic PRNG so "shuffle" is repeatable for a given seed. */
 function mulberry32(seed: number) {
   let a = seed >>> 0;
@@ -117,7 +143,12 @@ export function generate(highs: HighsLike, settings: Settings, constraints: Cons
     for (const { cs, diff, limit, strict: isStrict } of attempts) {
       if (isStrict && !tryStrict) continue;
       const model = buildModel(settings, cs, { noise, prefer: opts.prefer, exclude: exclude.map((e) => ({ ...e, minDiff: diff })) });
-      const res = run(highs, model.lp, limit, seed ? { mip_abs_gap: NOISE_BUDGET } : {});
+      // Preference scores are whole numbers (weights 1/3/10 per whole unit), so a
+      // rota within 0.99 of the best score is as good as the best: let the solver
+      // stop there. Not when rebalancing (the tiny closeness costs need the full search)
+      // or shuffling (its own noise margin applies).
+      const gap = seed ? { mip_abs_gap: NOISE_BUDGET } : !opts.prefer && !isStrict && integerScores(constraints, settings) ? { mip_abs_gap: 0.99 } : {};
+      const res = run(highs, model.lp, limit, gap);
       if (res.Status.startsWith('Error')) return { status: 'error', message: `The solver failed: ${res.Status}` };
       if (!hasSolution(res)) {
         if (isStrict && diff === diffs[diffs.length - 1]) tryStrict = false;

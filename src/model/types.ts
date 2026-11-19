@@ -157,6 +157,19 @@ export interface SidePref extends Base {
   sides?: Record<string, 'L' | 'R'>;
 }
 
+export interface MinSubs extends Base {
+  kind: 'min_subs';
+  /** Players coming on at each substitution point (as a preference, set high to maximise). */
+  perPoint: number;
+}
+export interface TogetherTime extends Base {
+  kind: 'together_time';
+  /** Two or more players who should share the pitch. */
+  players: string[];
+  /** Minutes they are all on together, at least. */
+  minMinutes: number;
+}
+
 export type Constraint =
   | EvenTime
   | MinutesRange
@@ -174,7 +187,9 @@ export type Constraint =
   | Spells
   | MaxOn
   | Rotate
-  | SidePref;
+  | SidePref
+  | MinSubs
+  | TogetherTime;
 
 export type ConstraintKind = Constraint['kind'];
 
