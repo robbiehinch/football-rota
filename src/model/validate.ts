@@ -379,6 +379,34 @@ export function validate(rota: Rota, settings: Settings, constraints: Constraint
           );
         }
         break;
+      case 'min_subs': {
+        const subsOpen = new Set(m.sub_points);
+        const target = Math.min(c.perPoint, Math.max(0, avail.length - positions.length));
+        for (let s = 1; s < n; s++) {
+          if (!subsOpen.has(s * len)) continue;
+          const comers = avail.filter((p) => on(p.id, s) && !on(p.id, s - 1)).length;
+          if (comers < target)
+            add(
+              `${comers === 0 ? 'Nobody comes' : `Only ${comers} player${comers === 1 ? '' : 's'} come${comers === 1 ? 's' : ''}`} on at ${s * len} min (${target} wanted).`,
+              target - comers,
+              { slots: [s] },
+            );
+        }
+        break;
+      }
+      case 'together_time': {
+        const group = c.players.map((id) => byId.get(id)).filter((p): p is Player => !!p?.available);
+        if (group.length < 2) break;
+        let together = 0;
+        for (let s = 0; s < n; s++) if (group.every((p) => on(p.id, s))) together += len;
+        if (together < c.minMinutes)
+          add(
+            `${list(group.map((p) => p.name))} are on together for ${together} min (at least ${c.minMinutes} wanted).`,
+            (c.minMinutes - together) / len,
+            { players: group.map((p) => p.id) },
+          );
+        break;
+      }
       case 'pin': {
         const p = byId.get(c.player);
         if (!p) break;

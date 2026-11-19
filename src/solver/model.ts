@@ -341,6 +341,32 @@ export function buildModel(settings: Settings, constraints: Constraint[], opts: 
           }
         }
         break;
+      case 'min_subs':
+        for (let i = 1; i < windows.length; i++) {
+          // Every position is filled in both windows, so players coming on = positions
+          // minus players who stay on. stay[p] >= 1 when p is on in both windows;
+          // capping the number who stay is a much tighter model than counting arrivals.
+          const stay = avail.map((p) => {
+            const y = aux('sy', 1);
+            le(terms(on(p.id, i - 1), on(p.id, i), [[y, -1]]), 1, null);
+            return [y, 1] as [string, number];
+          });
+          // Only players on the bench can come on, so the target is capped at the bench size.
+          const target = Math.min(c.perPoint, Math.max(0, avail.length - positions.length));
+          le(terms(stay), positions.length - target, slack(1));
+        }
+        break;
+      case 'together_time': {
+        const group = c.players.filter((id) => pIndex.has(id));
+        if (group.length < 2) break;
+        const zs = windows.map((w) => {
+          const z = aux('tg', 1);
+          for (const id of group) le(terms([[z, 1]], scale(on(id, w.index), -1)), 0, null);
+          return [z, w.minutes] as [string, number];
+        });
+        ge(terms(zs), c.minMinutes, slack(perMinute));
+        break;
+      }
       case 'max_on': {
         const k = Math.floor(c.maxMinutes / len) + 1;
         for (const p of scopePlayers(c.players, settings, () => true))
