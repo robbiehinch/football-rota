@@ -14,6 +14,9 @@ export const KIND_LABELS: Record<ConstraintKind, string> = {
   apart: 'Keep apart',
   group_mix: 'Group mix',
   pin: 'Pin',
+  gk_plan: 'Goalkeeper plan',
+  spells: 'Times on the pitch',
+  max_on: 'Max time on in a row',
 };
 
 export const KIND_HELP: Record<ConstraintKind, string> = {
@@ -29,6 +32,9 @@ export const KIND_HELP: Record<ConstraintKind, string> = {
   apart: 'Two players are never on the pitch at the same time.',
   group_mix: 'At least / at most N players from a group on the pitch at all times.',
   pin: 'Fix a cell, e.g. Jake in goal 0–10, or Martha starts on the bench.',
+  gk_plan: 'Choose who goes in goal in each goalkeeper block (e.g. each quarter). Leave a block blank to let the app choose.',
+  spells: 'How many separate times each player comes on, e.g. at most 2 spells each.',
+  max_on: 'Nobody plays more than N minutes without a break.',
 };
 
 export const WEIGHT_LABELS: Record<Weight, string> = { low: 'Low', medium: 'Medium', high: 'High' };
@@ -69,7 +75,27 @@ export function newConstraint(kind: ConstraintKind, settings: Settings): Constra
     }
     case 'pin':
       return { ...base(), kind, player: a, position: 'GK', from: 0, to: settings.match.quarter_length_min };
+    case 'gk_plan':
+      return { ...base(), kind, keepers: {} };
+    case 'spells':
+      return { ...base(), kind, min: 1, max: 2, players: [] };
+    case 'max_on':
+      return { ...base(), kind, maxMinutes: settings.match.quarter_length_min * 2, players: [] };
   }
+}
+
+/** Goalkeeper blocks: [start, end) between GK change points. */
+export function gkBlocks(m: MatchSettings): { start: number; end: number }[] {
+  const total = m.quarters * m.quarter_length_min;
+  const cuts = [...new Set([0, ...m.gk_change_points.filter((x) => x > 0 && x < total), total])].sort((a, b) => a - b);
+  return cuts.slice(0, -1).map((start, i) => ({ start, end: cuts[i + 1] }));
+}
+
+/** Goalkeeper blocks that have a chosen keeper in the plan. */
+export function plannedKeepers(c: { keepers: Record<string, string> }, m: MatchSettings) {
+  return gkBlocks(m)
+    .map((b) => ({ ...b, player: c.keepers[String(b.start)] ?? '' }))
+    .filter((b) => b.player);
 }
 
 function names(settings: Settings, ids: string[]): string {
@@ -128,6 +154,26 @@ export function describeConstraint(c: Constraint, settings: Settings): string {
       if (c.max != null) return `At most ${c.max} ${g} player${c.max === 1 ? '' : 's'} on the pitch`;
       return `No limits on ${g} players`;
     }
+    case 'gk_plan': {
+      const planned = plannedKeepers(c, settings.match);
+      if (!planned.length) return 'In goal: no one chosen yet (the app picks)';
+      return 'In goal: ' + planned.map((b) => `${n(b.player)} ${b.start}–${b.end}`).join(', ');
+    }
+    case 'spells': {
+      const who = c.players.length ? names(settings, c.players) : 'Everyone';
+      const t = (k: number) => `${k} time${k === 1 ? '' : 's'}`;
+      if (c.min != null && c.max != null)
+        return c.min === c.max ? `${who} comes on exactly ${t(c.min)}` : `${who} comes on between ${c.min} and ${t(c.max)}`;
+      if (c.min != null) return `${who} comes on at least ${t(c.min)}`;
+      if (c.max != null) return `${who} comes on at most ${t(c.max)}`;
+      return `${who}: no limit on times coming on`;
+    }
+    case 'max_on': {
+      const who = c.players.length ? names(settings, c.players) : 'Nobody';
+      return c.players.length
+        ? `${who}: no more than ${c.maxMinutes} min on the pitch in a row`
+        : `Nobody plays more than ${c.maxMinutes} min in a row`;
+    }
     case 'pin': {
       const where = c.position === 'BENCH' ? 'on the bench' : c.position === 'ON' ? 'on the pitch' : `in ${c.position}`;
       return `${n(c.player)} ${where} ${c.from}–${c.to} min`;
@@ -141,7 +187,11 @@ export function referencedPlayers(c: Constraint): string[] {
     case 'minutes':
     case 'role_balance':
     case 'gk_share':
+    case 'spells':
+    case 'max_on':
       return c.players;
+    case 'gk_plan':
+      return Object.values(c.keepers).filter(Boolean);
     case 'together':
     case 'apart':
       return [c.a, c.b];

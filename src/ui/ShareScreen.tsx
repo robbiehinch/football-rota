@@ -5,7 +5,7 @@ import { hardBreaks, validate } from '../model/validate';
 import { rotationGraphBlob } from '../share/png';
 import { whatsappText } from '../share/whatsapp';
 import { reference } from './store';
-import { ByTime, RotationGraph, Shifts } from './RotaViews';
+import { ByTime, MinutesKeyView, RotationGraph, Shifts, SubsList } from './RotaViews';
 
 interface Props {
   setup: Setup;
@@ -43,11 +43,12 @@ async function copyText(text: string): Promise<boolean> {
 
 export function ShareScreen({ setup, replace, goOptions }: Props) {
   const [title, setTitle] = useState('Match rota');
+  const [withSubs, setWithSubs] = useState(true);
   const [flash, setFlash] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const { settings } = setup;
   const rota = setup.rota && setup.rota.length === slotCount(settings.match) ? setup.rota : null;
-  const text = useMemo(() => (rota ? whatsappText(rota, settings, title) : ''), [rota, settings, title]);
+  const text = useMemo(() => (rota ? whatsappText(rota, settings, title, withSubs) : ''), [rota, settings, title, withSubs]);
   const hard = useMemo(() => (rota ? hardBreaks(validate(rota, settings, setup.constraints)) : []), [rota, settings, setup.constraints]);
 
   const say = (msg: string) => {
@@ -111,6 +112,10 @@ export function ShareScreen({ setup, replace, goOptions }: Props) {
               <input value={title} onChange={(e) => setTitle(e.target.value)} />
             </label>
             <h2>WhatsApp</h2>
+            <label className="check small">
+              <input type="checkbox" checked={withSubs} onChange={(e) => setWithSubs(e.target.checked)} />
+              Include who comes on and off at each change
+            </label>
             <pre className="wa-preview">{text}</pre>
             <div className="row-btns">
               <button type="button" className="btn primary" onClick={async () => say((await copyText(text)) ? 'Copied. Paste it into WhatsApp.' : 'Could not copy.')}>
@@ -136,12 +141,15 @@ export function ShareScreen({ setup, replace, goOptions }: Props) {
           <div className="print-sheet">
             <h1>{title}</h1>
             <RotationGraph rota={rota} settings={settings} />
+            <MinutesKeyView rota={rota} settings={settings} />
             <div className="print-cols">
               <div>
                 <h2>By time</h2>
                 <ByTime rota={rota} settings={settings} />
               </div>
               <div>
+                <h2>Substitutions</h2>
+                <SubsList rota={rota} settings={settings} />
                 <h2>Minutes</h2>
                 <Shifts rota={rota} settings={settings} />
               </div>

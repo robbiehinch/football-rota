@@ -16,3 +16,11 @@ test('WhatsApp text matches the agreed format', () => {
     '*Minutes:* Joseph 25 · Rufus 25 · Albie 25 · Cass 25 · Jake 20 · Milo 20 · George 20 · Martha 20 · Alex 20',
   );
 });
+
+test('WhatsApp text can include the substitutions, flagging mid-quarter ones', () => {
+  const { rota, settings } = coachesSetup();
+  const lines = whatsappText(rota!, settings, 'Match rota', true).split('\n');
+  expect(lines[3]).toBe('*5-10* GK Jake · LD George · RD Albie · LA Martha · RA Cass');
+  expect(lines[4]).toBe('   SUBS (mid-quarter): Albie on for Joseph (RD)');
+  expect(lines).toContain('   SUBS (mid-quarter): Rufus on for Cass (RD), Alex RD → LD');
+});

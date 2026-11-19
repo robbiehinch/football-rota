@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { groupColor, textOn } from '../model/colors';
+import { minutesColors, textOn } from '../model/colors';
+import { substitutions } from '../model/subs';
 import { ROLE_NAMES, slotCount } from '../model/match';
 import { lineupWindows, playerStats } from '../model/stats';
 import type { Break, Rota, Settings } from '../model/types';
@@ -29,6 +30,7 @@ export function RotationGraph({ rota, settings, highlight, onHighlight, breaks =
   const m = settings.match;
   const n = slotCount(m);
   const stats = useMemo(() => playerStats(rota, settings), [rota, settings]);
+  const colors = useMinutesColors(rota, settings);
   const players = shownPlayers(rota, settings);
   const perQuarter = m.quarter_length_min / m.slot_length_min;
   const subs = new Set(m.sub_points);
@@ -71,7 +73,7 @@ export function RotationGraph({ rota, settings, highlight, onHighlight, breaks =
         <tbody>
           {players.map((p) => {
             const st = stats[p.id];
-            const bg = groupColor(p.group);
+            const bg = colors.byPlayer[p.id];
             const dim = highlight && highlight !== p.id;
             return (
               <tr key={p.id} className={`${dim ? 'dim' : ''} ${highlight === p.id ? 'hl' : ''}`}>
@@ -136,7 +138,8 @@ export function RotationGraph({ rota, settings, highlight, onHighlight, breaks =
 /** One row per substitution window: who's on (by position) and who's off. */
 export function ByTime({ rota, settings, highlight, onHighlight }: Omit<GraphProps, 'breaks'>) {
   const name = (id: string | null) => (id ? (settings.squad.find((p) => p.id === id)?.name ?? '?') : '—');
-  const color = (id: string | null) => groupColor(settings.squad.find((p) => p.id === id)?.group ?? '');
+  const colors = useMinutesColors(rota, settings);
+  const color = (id: string | null) => (id ? colors.byPlayer[id] : 'transparent');
   return (
     <ol className="bytime">
       {lineupWindows(rota, settings).map((w) => (
@@ -187,6 +190,7 @@ export function ByTime({ rota, settings, highlight, onHighlight }: Omit<GraphPro
 /** A bar per player with total minutes; tap for the role breakdown. */
 export function Shifts({ rota, settings, highlight, onHighlight }: Omit<GraphProps, 'breaks'>) {
   const stats = useMemo(() => playerStats(rota, settings), [rota, settings]);
+  const colors = useMinutesColors(rota, settings);
   const [open, setOpen] = useState<string | null>(null);
   const m = settings.match;
   const total = m.quarters * m.quarter_length_min;
@@ -195,7 +199,7 @@ export function Shifts({ rota, settings, highlight, onHighlight }: Omit<GraphPro
     <ul className="shifts">
       {shownPlayers(rota, settings).map((p) => {
         const st = stats[p.id];
-        const bg = groupColor(p.group);
+        const bg = colors.byPlayer[p.id];
         const isOpen = open === p.id;
         return (
           <li key={p.id} className={`${highlight && highlight !== p.id ? 'dim' : ''} ${highlight === p.id ? 'hl' : ''}`}>
@@ -257,12 +261,13 @@ export function BreakList({ breaks, empty }: { breaks: Break[]; empty?: string }
   );
 }
 
-export type ViewKind = 'graph' | 'time' | 'shifts';
+export type ViewKind = 'graph' | 'time' | 'subs' | 'shifts';
 
 export function ViewTabs({ value, onChange }: { value: ViewKind; onChange: (v: ViewKind) => void }) {
   const tabs: [ViewKind, string][] = [
     ['graph', 'Rotation'],
     ['time', 'By time'],
+    ['subs', 'Subs'],
     ['shifts', 'Shifts'],
   ];
   return (
@@ -283,8 +288,14 @@ export function RotaViews(props: { rota: Rota; settings: Settings; breaks?: Brea
   return (
     <div className="views">
       <ViewTabs value={view} onChange={setView} />
-      {view === 'graph' && <RotationGraph {...common} breaks={props.breaks} />}
+      {view === 'graph' && (
+        <>
+          <RotationGraph {...common} breaks={props.breaks} />
+          <MinutesKeyView rota={props.rota} settings={props.settings} />
+        </>
+      )}
       {view === 'time' && <ByTime {...common} />}
+      {view === 'subs' && <SubsList {...common} />}
       {view === 'shifts' && <Shifts {...common} />}
       {highlight && (
         <p className="muted small hl-note">
@@ -297,3 +308,107 @@ export function RotaViews(props: { rota: Rota; settings: Settings; breaks?: Brea
     </div>
   );
 }
+
+/** Colours by total minutes, recomputed whenever the rota changes. */
+export function useMinutesColors(rota: Rota, settings: Settings) {
+  return useMemo(() => {
+    const stats = playerStats(rota, settings);
+    return minutesColors(Object.fromEntries(shownPlayers(rota, settings).map((p) => [p.id, stats[p.id]?.total ?? 0])));
+  }, [rota, settings]);
+}
+
+/** "■ 25 min · ■ 20 min" key under the rotation graph. */
+export function MinutesKeyView({ rota, settings }: { rota: Rota; settings: Settings }) {
+  const { key } = useMinutesColors(rota, settings);
+  if (!key.length) return null;
+  return (
+    <p className="minutes-key">
+      {key.map((k) => (
+        <span key={k.minutes}>
+          <i className="swatch" style={{ background: k.color }} />
+          {k.minutes} min
+          <span className="muted"> ({k.players.length})</span>
+        </span>
+      ))}
+      <span>
+        <i className="swatch off-swatch" />
+        bench
+      </span>
+    </p>
+  );
+}
+
+/** Every change in order: who comes on for whom, who moves. Mid-quarter changes are flagged. */
+export function SubsList({ rota, settings, highlight, onHighlight }: Omit<GraphProps, 'breaks'>) {
+  const name = (id: string) => settings.squad.find((p) => p.id === id)?.name ?? '?';
+  const colors = useMinutesColors(rota, settings);
+  const events = substitutions(rota, settings);
+  const P = ({ id }: { id: string }) => (
+    <button
+      type="button"
+      className={`sub-name ${highlight && highlight !== id ? 'dim' : ''} ${highlight === id ? 'hl' : ''}`}
+      onClick={() => onHighlight?.(highlight === id ? null : id)}
+    >
+      <i className="dot" style={{ background: colors.byPlayer[id] }} />
+      {name(id)}
+    </button>
+  );
+  const start = rota[0] ?? {};
+  return (
+    <ol className="subs">
+      <li>
+        <div className="sub-when">
+          <b>0′</b>
+          <span className="tag">Kick-off</span>
+        </div>
+        <div className="sub-items">
+          {settings.positions.map((q) =>
+            start[q.code] ? (
+              <span key={q.code} className="sub-item">
+                <b className="pos">{q.code}</b> <P id={start[q.code]!} />
+              </span>
+            ) : null,
+          )}
+        </div>
+      </li>
+      {events.map((e) => (
+        <li key={e.minute} className={e.midQuarter ? 'mid' : ''}>
+          <div className="sub-when">
+            <b>{e.minute}′</b>
+            <span className={`tag ${e.midQuarter ? 'tag-mid' : ''}`}>{e.midQuarter ? `Mid Q${e.quarter}` : `Start Q${e.quarter}`}</span>
+          </div>
+          <div className="sub-items">
+            {e.swaps.map((x) => (
+              <span key={x.on} className="sub-item">
+                <span className="arrow on" aria-label="on">▲</span>
+                <P id={x.on} /> on for
+                <span className="arrow off" aria-label="off">▼</span>
+                <P id={x.off} /> <b className="pos">{x.position}</b>
+              </span>
+            ))}
+            {e.on.map((x) => (
+              <span key={x.player} className="sub-item">
+                <span className="arrow on" aria-label="on">▲</span>
+                <P id={x.player} /> on <b className="pos">{x.position}</b>
+              </span>
+            ))}
+            {e.off.map((id) => (
+              <span key={id} className="sub-item">
+                <span className="arrow off" aria-label="off">▼</span>
+                <P id={id} /> off
+              </span>
+            ))}
+            {e.moves.map((x) => (
+              <span key={x.player} className="sub-item">
+                <span className="arrow move" aria-label="moves">↔</span>
+                <P id={x.player} /> {x.from} → {x.to}
+              </span>
+            ))}
+          </div>
+        </li>
+      ))}
+      {!events.length && <li className="muted">No changes during the match.</li>}
+    </ol>
+  );
+}
+

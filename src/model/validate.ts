@@ -1,4 +1,4 @@
-import { describeConstraint } from './constraints';
+import { describeConstraint, plannedKeepers } from './constraints';
 import {
   ROLE_NAMES,
   WEIGHT_VALUE,
@@ -11,7 +11,7 @@ import {
   slotCount,
   totalMinutes,
 } from './match';
-import { timelines } from './stats';
+import { playerStats, timelines } from './stats';
 import type { Break, Constraint, Player, Rota, Settings } from './types';
 
 const span = (a: number, b: number) => `${a}–${b}`;
@@ -299,6 +299,49 @@ export function validate(rota: Rota, settings: Settings, constraints: Constraint
         }
         add(`Fewer than ${c.min} ${c.group} players on at ${ranges(low, len)}.`, lowAmt, { slots: low });
         add(`More than ${c.max} ${c.group} players on at ${ranges(high, len)}.`, highAmt, { slots: high });
+        break;
+      }
+      case 'gk_plan': {
+        for (const block of plannedKeepers(c, m)) {
+          const bad: number[] = [];
+          for (let s = 0; s < n; s++) {
+            if (s * len < block.start || (s + 1) * len > block.end) continue;
+            if (!gk.some((code) => rota[s]?.[code] === block.player)) bad.push(s);
+          }
+          add(`${name(block.player)} should be in goal ${span(block.start, block.end)} (not at ${ranges(bad, len)}).`, bad.length, {
+            players: [block.player],
+            slots: bad,
+          });
+        }
+        break;
+      }
+      case 'spells': {
+        const stats = playerStats(rota, settings);
+        for (const p of scopePlayers(c.players, settings, () => true)) {
+          const k = stats[p.id]?.spells ?? 0;
+          const times = (x: number) => `${x} time${x === 1 ? '' : 's'}`;
+          if (c.min != null && k < c.min) add(`${p.name} comes on ${times(k)} (at least ${c.min} wanted).`, c.min - k, { players: [p.id] });
+          if (c.max != null && k > c.max) add(`${p.name} comes on ${times(k)} (at most ${c.max} wanted).`, k - c.max, { players: [p.id] });
+        }
+        break;
+      }
+      case 'max_on': {
+        const k = Math.floor(c.maxMinutes / len) + 1;
+        for (const p of scopePlayers(c.players, settings, () => true)) {
+          let runs = 0;
+          let longest = 0;
+          let cur = 0;
+          for (let s = 0; s < n; s++) {
+            cur = on(p.id, s) ? cur + len : 0;
+            longest = Math.max(longest, cur);
+            if (s + 1 >= k) {
+              let all = true;
+              for (let t = s + 1 - k; t <= s; t++) if (!on(p.id, t)) all = false;
+              if (all) runs++;
+            }
+          }
+          if (runs) add(`${p.name} plays ${longest} min in a row (limit ${c.maxMinutes}).`, runs, { players: [p.id] });
+        }
         break;
       }
       case 'pin': {

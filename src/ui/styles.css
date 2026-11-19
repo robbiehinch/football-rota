@@ -556,6 +556,34 @@ select:focus-visible {
   padding-top: 6px;
 }
 
+.edit-btn {
+  flex: none;
+  min-height: 32px;
+}
+.gk-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0;
+}
+.gk-row {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  align-items: center;
+  gap: 8px;
+}
+.gk-time {
+  font-weight: 700;
+}
+.gk-row select {
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0 10px;
+  background: var(--card);
+  width: 100%;
+}
+
 /* Options */
 .option-head {
   display: flex;
@@ -847,6 +875,115 @@ select:focus-visible {
   font-weight: 800;
   color: var(--muted);
   margin-right: 2px;
+}
+
+/* Minutes key */
+.minutes-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 8px 0 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.minutes-key > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+}
+.off-swatch {
+  background: var(--off);
+  border: 1px solid var(--border);
+}
+
+/* Subs */
+.subs {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.subs > li {
+  display: flex;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.subs > li.mid {
+  background: color-mix(in srgb, var(--soft-soft) 60%, transparent);
+  margin: 0 -8px;
+  padding: 8px;
+  border-radius: 8px;
+}
+.sub-when {
+  flex: none;
+  width: 62px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sub-when b {
+  font-size: 1rem;
+}
+.tag {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+.tag-mid {
+  color: var(--soft);
+}
+.sub-items {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9rem;
+}
+.sub-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.sub-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: none;
+  padding: 0;
+  font-weight: 700;
+  cursor: pointer;
+}
+.sub-name.hl {
+  text-decoration: underline;
+}
+.pos {
+  font-size: 0.75rem;
+  background: var(--off);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+.arrow {
+  font-size: 0.7rem;
+}
+.arrow.on {
+  color: var(--accent);
+}
+.arrow.off {
+  color: var(--hard);
+}
+.arrow.move {
+  color: var(--muted);
 }
 
 /* Shifts */

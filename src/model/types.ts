@@ -120,6 +120,26 @@ export interface Pin extends Base {
   from: number;
   to: number;
 }
+export interface GkPlan extends Base {
+  kind: 'gk_plan';
+  /** Goalkeeper block start minute -> player id ('' = solver picks). */
+  keepers: Record<string, string>;
+}
+export interface Spells extends Base {
+  kind: 'spells';
+  /** Number of separate spells on the pitch (times coming on). */
+  min: number | null;
+  max: number | null;
+  /** Empty = all available players. */
+  players: string[];
+}
+export interface MaxOn extends Base {
+  kind: 'max_on';
+  /** Longest continuous time on the pitch, in minutes. */
+  maxMinutes: number;
+  /** Empty = all available players. */
+  players: string[];
+}
 
 export type Constraint =
   | EvenTime
@@ -133,7 +153,10 @@ export type Constraint =
   | Together
   | Apart
   | GroupMix
-  | Pin;
+  | Pin
+  | GkPlan
+  | Spells
+  | MaxOn;
 
 export type ConstraintKind = Constraint['kind'];
 

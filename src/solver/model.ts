@@ -9,6 +9,7 @@ import {
   windowsFor,
   type Window,
 } from '../model/match';
+import { plannedKeepers } from '../model/constraints';
 import { emptyRota } from '../model/stats';
 import type { Constraint, Rota, Settings } from '../model/types';
 import { roleBlocks, scopePlayers } from '../model/validate';
@@ -278,6 +279,39 @@ export function buildModel(settings: Settings, constraints: Constraint[], opts: 
             ge(v ? terms([[v, 1]]) : terms(), 1, s);
           }
         }
+        break;
+      }
+      case 'gk_plan':
+        for (const block of plannedKeepers(c, m))
+          for (const w of windows) {
+            let k = 0;
+            for (let s = w.from; s < w.to; s++) if (s * len >= block.start && (s + 1) * len <= block.end) k++;
+            if (k) ge(role(block.player, w.index, 'GK'), 1, slack(k, 1));
+          }
+        break;
+      case 'spells':
+        for (const p of scopePlayers(c.players, settings, () => true)) {
+          // starts[w] = 1 exactly when the player comes on at the start of window w.
+          const starts: Terms[] = windows.map((w) => {
+            if (w.index === 0) return on(p.id, 0);
+            const st = aux('st', 1);
+            ge(terms([[st, 1]], scale(on(p.id, w.index), -1), on(p.id, w.index - 1)), 0, null);
+            le(terms([[st, 1]], scale(on(p.id, w.index), -1)), 0, null);
+            le(terms([[st, 1]], on(p.id, w.index - 1)), 1, null);
+            return terms([[st, 1]]);
+          });
+          const count = terms(...starts);
+          if (c.min != null) ge(count, c.min, slack(1));
+          if (c.max != null) le(count, c.max, slack(1));
+        }
+        break;
+      case 'max_on': {
+        const k = Math.floor(c.maxMinutes / len) + 1;
+        for (const p of scopePlayers(c.players, settings, () => true))
+          for (let s = 0; s + k <= n; s++) {
+            const ws = windows.filter((w) => w.from < s + k && w.to > s);
+            le(terms(...ws.map((w) => on(p.id, w.index))), ws.length - 1, slack(1, 1));
+          }
         break;
       }
     }

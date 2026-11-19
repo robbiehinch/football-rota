@@ -11,6 +11,8 @@ export interface PlayerStats {
   spells: number;
   /** Longest continuous spell on the bench, in minutes. */
   longestBench: number;
+  /** Longest continuous spell on the pitch, in minutes. */
+  longestOn: number;
   /** Position code per slot, or null when on the bench. */
   timeline: (string | null)[];
 }
@@ -41,6 +43,8 @@ export function playerStats(rota: Rota, settings: Settings): Record<string, Play
     let spells = 0;
     let bench = 0;
     let longestBench = 0;
+    let on = 0;
+    let longestOn = 0;
     let slots = 0;
     line.forEach((code, s) => {
       if (code) {
@@ -50,12 +54,15 @@ export function playerStats(rota: Rota, settings: Settings): Record<string, Play
         byRole[r] = (byRole[r] ?? 0) + len;
         if (s === 0 || !line[s - 1]) spells++;
         bench = 0;
+        on += len;
+        longestOn = Math.max(longestOn, on);
       } else {
+        on = 0;
         bench += len;
         longestBench = Math.max(longestBench, bench);
       }
     });
-    out[id] = { id, total: slots * len, slots, byRole, byPosition, spells, longestBench, timeline: line };
+    out[id] = { id, total: slots * len, slots, byRole, byPosition, spells, longestBench, longestOn, timeline: line };
   }
   return out;
 }

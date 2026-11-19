@@ -1,6 +1,8 @@
+import { newConstraint } from '../model/constraints';
 import type { Setup } from '../model/io';
 import { quarterBreaks, slotBoundaries, slotCount, totalMinutes } from '../model/match';
-import type { MatchSettings } from '../model/types';
+import type { GkPlan, MatchSettings } from '../model/types';
+import { GkPlanEditor } from './RulesScreen';
 
 interface Props {
   setup: Setup;
@@ -26,6 +28,15 @@ export function MatchScreen({ setup, update }: Props) {
       next.sub_points = patch.sub_points ?? (shapeChanged ? [...q] : next.sub_points.filter((x) => b.includes(x)));
       next.gk_change_points = patch.gk_change_points ?? (shapeChanged ? [...q] : next.gk_change_points.filter((x) => b.includes(x)));
       return { ...s, settings: { ...s.settings, match: next }, rota: shapeChanged ? null : s.rota };
+    });
+
+  const plan = setup.constraints.find((c): c is GkPlan => c.kind === 'gk_plan');
+  const setKeepers = (keepers: Record<string, string>) =>
+    update((s) => {
+      const existing = s.constraints.find((c): c is GkPlan => c.kind === 'gk_plan');
+      if (existing)
+        return { ...s, constraints: s.constraints.map((c) => (c.id === existing.id ? { ...existing, keepers, enabled: true } : c)) };
+      return { ...s, constraints: [...s.constraints, { ...(newConstraint('gk_plan', s.settings) as GkPlan), keepers }] };
     });
 
   const toggle = (key: 'sub_points' | 'gk_change_points', x: number) => {
@@ -119,6 +130,16 @@ export function MatchScreen({ setup, update }: Props) {
             Quarter breaks
           </button>
         </div>
+      </div>
+      <div className="card">
+        <h2>Who's in goal</h2>
+        <p className="muted small">Pick a keeper for any block, or leave it to the app. Saved as the “Goalkeeper plan” rule.</p>
+        <GkPlanEditor settings={setup.settings} keepers={plan?.enabled ? plan.keepers : {}} onChange={setKeepers} />
+        {plan?.enabled && Object.values(plan.keepers).some(Boolean) && (
+          <button type="button" className="btn ghost small" onClick={() => setKeepers({})}>
+            Clear goalkeeper plan
+          </button>
+        )}
       </div>
       <p className="muted small">Bold outlines mark quarter breaks. Changing the match length clears the current rota.</p>
     </section>
