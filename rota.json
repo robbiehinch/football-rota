@@ -1,0 +1,343 @@
+{
+  "description": "Reference rota from the coaches' WhatsApp chart (Match Day - Mobile). One slot = 5 minutes.",
+  "match": {
+    "format": "5-a-side",
+    "age_group": "U8",
+    "quarters": 4,
+    "quarter_length_min": 10,
+    "slot_length_min": 5,
+    "slots": 8
+  },
+  "positions": [
+    {
+      "code": "GK",
+      "name": "Goalkeeper",
+      "role": "GK"
+    },
+    {
+      "code": "LD",
+      "name": "Left defence",
+      "role": "DEF"
+    },
+    {
+      "code": "RD",
+      "name": "Right defence",
+      "role": "DEF"
+    },
+    {
+      "code": "LA",
+      "name": "Left attack",
+      "role": "ATT"
+    },
+    {
+      "code": "RA",
+      "name": "Right attack",
+      "role": "ATT"
+    }
+  ],
+  "squad": [
+    {
+      "name": "Jake",
+      "group": "yellow"
+    },
+    {
+      "name": "Joseph",
+      "group": "blue"
+    },
+    {
+      "name": "Rufus",
+      "group": "blue"
+    },
+    {
+      "name": "Albie",
+      "group": "blue"
+    },
+    {
+      "name": "Cass",
+      "group": "blue"
+    },
+    {
+      "name": "Milo",
+      "group": "yellow"
+    },
+    {
+      "name": "George",
+      "group": "yellow"
+    },
+    {
+      "name": "Martha",
+      "group": "yellow"
+    },
+    {
+      "name": "Alex",
+      "group": "yellow"
+    }
+  ],
+  "rota": [
+    {
+      "slot": 1,
+      "quarter": 1,
+      "start_min": 0,
+      "end_min": 5,
+      "assignments": {
+        "GK": "Jake",
+        "LD": "George",
+        "RD": "Joseph",
+        "LA": "Martha",
+        "RA": "Cass"
+      },
+      "bench": [
+        "Rufus",
+        "Albie",
+        "Milo",
+        "Alex"
+      ]
+    },
+    {
+      "slot": 2,
+      "quarter": 1,
+      "start_min": 5,
+      "end_min": 10,
+      "assignments": {
+        "GK": "Jake",
+        "LD": "George",
+        "RD": "Albie",
+        "LA": "Martha",
+        "RA": "Cass"
+      },
+      "bench": [
+        "Joseph",
+        "Rufus",
+        "Milo",
+        "Alex"
+      ]
+    },
+    {
+      "slot": 3,
+      "quarter": 2,
+      "start_min": 10,
+      "end_min": 15,
+      "assignments": {
+        "GK": "Joseph",
+        "LD": "Milo",
+        "RD": "Cass",
+        "LA": "Alex",
+        "RA": "Rufus"
+      },
+      "bench": [
+        "Jake",
+        "Albie",
+        "George",
+        "Martha"
+      ]
+    },
+    {
+      "slot": 4,
+      "quarter": 2,
+      "start_min": 15,
+      "end_min": 20,
+      "assignments": {
+        "GK": "Joseph",
+        "LD": "Milo",
+        "RD": "Cass",
+        "LA": "Alex",
+        "RA": "Rufus"
+      },
+      "bench": [
+        "Jake",
+        "Albie",
+        "George",
+        "Martha"
+      ]
+    },
+    {
+      "slot": 5,
+      "quarter": 3,
+      "start_min": 20,
+      "end_min": 25,
+      "assignments": {
+        "GK": "Rufus",
+        "LD": "Martha",
+        "RD": "Albie",
+        "LA": "George",
+        "RA": "Joseph"
+      },
+      "bench": [
+        "Jake",
+        "Cass",
+        "Milo",
+        "Alex"
+      ]
+    },
+    {
+      "slot": 6,
+      "quarter": 3,
+      "start_min": 25,
+      "end_min": 30,
+      "assignments": {
+        "GK": "Rufus",
+        "LD": "Martha",
+        "RD": "Albie",
+        "LA": "George",
+        "RA": "Joseph"
+      },
+      "bench": [
+        "Jake",
+        "Cass",
+        "Milo",
+        "Alex"
+      ]
+    },
+    {
+      "slot": 7,
+      "quarter": 4,
+      "start_min": 30,
+      "end_min": 35,
+      "assignments": {
+        "GK": "Jake",
+        "LD": "Cass",
+        "RD": "Alex",
+        "LA": "Milo",
+        "RA": "Albie"
+      },
+      "bench": [
+        "Joseph",
+        "Rufus",
+        "George",
+        "Martha"
+      ]
+    },
+    {
+      "slot": 8,
+      "quarter": 4,
+      "start_min": 35,
+      "end_min": 40,
+      "assignments": {
+        "GK": "Jake",
+        "LD": "Alex",
+        "RD": "Rufus",
+        "LA": "Milo",
+        "RA": "Albie"
+      },
+      "bench": [
+        "Joseph",
+        "Cass",
+        "George",
+        "Martha"
+      ]
+    }
+  ],
+  "summary_check": {
+    "Jake": {
+      "total_min": 20,
+      "by_role_min": {
+        "GK": 20,
+        "DEF": 0,
+        "ATT": 0
+      },
+      "by_position_min": {
+        "GK": 20
+      }
+    },
+    "Joseph": {
+      "total_min": 25,
+      "by_role_min": {
+        "GK": 10,
+        "DEF": 5,
+        "ATT": 10
+      },
+      "by_position_min": {
+        "RD": 5,
+        "GK": 10,
+        "RA": 10
+      }
+    },
+    "Rufus": {
+      "total_min": 25,
+      "by_role_min": {
+        "GK": 10,
+        "DEF": 5,
+        "ATT": 10
+      },
+      "by_position_min": {
+        "RA": 10,
+        "GK": 10,
+        "RD": 5
+      }
+    },
+    "Albie": {
+      "total_min": 25,
+      "by_role_min": {
+        "GK": 0,
+        "DEF": 15,
+        "ATT": 10
+      },
+      "by_position_min": {
+        "RD": 15,
+        "RA": 10
+      }
+    },
+    "Cass": {
+      "total_min": 25,
+      "by_role_min": {
+        "GK": 0,
+        "DEF": 15,
+        "ATT": 10
+      },
+      "by_position_min": {
+        "RA": 10,
+        "RD": 10,
+        "LD": 5
+      }
+    },
+    "Milo": {
+      "total_min": 20,
+      "by_role_min": {
+        "GK": 0,
+        "DEF": 10,
+        "ATT": 10
+      },
+      "by_position_min": {
+        "LD": 10,
+        "LA": 10
+      }
+    },
+    "George": {
+      "total_min": 20,
+      "by_role_min": {
+        "GK": 0,
+        "DEF": 10,
+        "ATT": 10
+      },
+      "by_position_min": {
+        "LD": 10,
+        "LA": 10
+      }
+    },
+    "Martha": {
+      "total_min": 20,
+      "by_role_min": {
+        "GK": 0,
+        "DEF": 10,
+        "ATT": 10
+      },
+      "by_position_min": {
+        "LA": 10,
+        "LD": 10
+      }
+    },
+    "Alex": {
+      "total_min": 20,
+      "by_role_min": {
+        "GK": 0,
+        "DEF": 10,
+        "ATT": 10
+      },
+      "by_position_min": {
+        "LA": 10,
+        "RD": 5,
+        "LD": 5
+      }
+    }
+  }
+}

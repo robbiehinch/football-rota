@@ -1,0 +1,9 @@
+minutes,quarter,GK,LD,RD,LA,RA,bench
+0-5,1,Jake,George,Joseph,Martha,Cass,"Rufus, Albie, Milo, Alex"
+5-10,1,Jake,George,Albie,Martha,Cass,"Joseph, Rufus, Milo, Alex"
+10-15,2,Joseph,Milo,Cass,Alex,Rufus,"Jake, Albie, George, Martha"
+15-20,2,Joseph,Milo,Cass,Alex,Rufus,"Jake, Albie, George, Martha"
+20-25,3,Rufus,Martha,Albie,George,Joseph,"Jake, Cass, Milo, Alex"
+25-30,3,Rufus,Martha,Albie,George,Joseph,"Jake, Cass, Milo, Alex"
+30-35,4,Jake,Cass,Alex,Milo,Albie,"Joseph, Rufus, George, Martha"
+35-40,4,Jake,Alex,Rufus,Milo,Albie,"Joseph, Cass, George, Martha"
