@@ -622,6 +622,13 @@ select:focus-visible {
   margin-right: 2px;
 }
 
+.incoming {
+  border: 2px solid var(--accent);
+}
+.incoming h2 {
+  color: var(--accent);
+}
+
 /* Options */
 .option-head {
   display: flex;

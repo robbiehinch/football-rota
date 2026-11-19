@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { Setup } from '../model/io';
+import { decodeSetup, linkCodeFromHash } from '../share/link';
 import type { Rota } from '../model/types';
 import { solve, warmUp } from '../solver/client';
 import { EditScreen } from './EditScreen';
@@ -42,6 +43,26 @@ export function App() {
     const t = setTimeout(warmUp, 500);
     return () => clearTimeout(t);
   }, []);
+
+  // Opened from a share link? Ask before replacing this phone's setup.
+  const [incoming, setIncoming] = useState<{ setup: Setup } | { error: string } | null>(null);
+  useEffect(() => {
+    const check = () => {
+      const code = linkCodeFromHash();
+      if (!code) return;
+      decodeSetup(code).then(
+        (s) => setIncoming({ setup: s }),
+        (e: unknown) => setIncoming({ error: e instanceof Error ? e.message : 'The link could not be read.' }),
+      );
+    };
+    check();
+    window.addEventListener('hashchange', check);
+    return () => window.removeEventListener('hashchange', check);
+  }, []);
+  const closeIncoming = () => {
+    setIncoming(null);
+    history.replaceState(null, '', location.pathname + location.search);
+  };
 
   const update = useCallback((fn: (s: Setup) => Setup) => setSetup((s) => fn(s)), [setSetup]);
   const inputKey = useMemo(() => JSON.stringify([setup.settings, setup.constraints]), [setup.settings, setup.constraints]);
@@ -88,6 +109,44 @@ export function App() {
         </>
       )}
       <main className="main">
+        {incoming && (
+          <div className="card incoming no-print" role="dialog" aria-label="Shared rota">
+            {'error' in incoming ? (
+              <>
+                <h2>This link didn't work</h2>
+                <p>{incoming.error}</p>
+                <button type="button" className="btn small" onClick={closeIncoming}>
+                  OK
+                </button>
+              </>
+            ) : (
+              <>
+                <h2>Open the shared rota?</h2>
+                <p className="small">
+                  {incoming.setup.settings.squad.length} players · {incoming.setup.constraints.filter((c) => c.enabled).length} rules
+                  {incoming.setup.rota ? ' · line-up included' : ''}. Opening it replaces the squad, rules and rota on this phone.
+                </p>
+                <div className="row-btns">
+                  <button
+                    type="button"
+                    className="btn primary"
+                    onClick={() => {
+                      setSetup(incoming.setup);
+                      setRun({ running: false, result: null, inputKey: null, ms: 0, seed: 0 });
+                      closeIncoming();
+                      go(incoming.setup.rota ? 'edit' : 'options');
+                    }}
+                  >
+                    Open
+                  </button>
+                  <button type="button" className="btn" onClick={closeIncoming}>
+                    Keep mine
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
         {tab === 'squad' && <SquadScreen setup={setup} update={update} />}
         {tab === 'match' && <MatchScreen setup={setup} update={update} />}
         {tab === 'rules' && <RulesScreen setup={setup} update={update} />}
