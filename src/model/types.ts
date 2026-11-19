@@ -20,6 +20,8 @@ export interface Player {
   allowed_positions: string[];
   /** Only ever plays in goal. Overrides allowed_positions. */
   gk_only?: boolean;
+  /** Preferred side of the pitch, used by the "Preferred side" rule. */
+  side?: 'L' | 'R';
 }
 
 export interface MatchSettings {
@@ -72,7 +74,10 @@ export interface RoleBalance extends Base {
 }
 export interface GkShare extends Base {
   kind: 'gk_share';
-  /** Only these go in goal. Empty = anyone allowed in GK. */
+  /**
+   * Legacy: who may go in goal. Now always empty: the GK ticks on the squad
+   * decide that (old setups are converted by migrateSetup).
+   */
   players: string[];
   minEach: number | null;
   evenWithin: number | null;
@@ -148,8 +153,8 @@ export interface Rotate extends Base {
 }
 export interface SidePref extends Base {
   kind: 'side_pref';
-  /** Player id -> preferred side. Players not listed have no preference. */
-  sides: Record<string, 'L' | 'R'>;
+  /** Legacy: sides now live on each player (Player.side); converted by migrateSetup. */
+  sides?: Record<string, 'L' | 'R'>;
 }
 
 export type Constraint =

@@ -46,7 +46,8 @@ describe('rotate positions', () => {
 describe('preferred side', () => {
   test('validator counts minutes on the wrong side', () => {
     const s = coachesSetup();
-    const c = { ...(newConstraint('side_pref', s.settings) as SidePref), sides: { [idOf(s, 'Cass')]: 'L' as const } };
+    s.settings.squad.find((p) => p.name === 'Cass')!.side = 'L';
+    const c = newConstraint('side_pref', s.settings) as SidePref;
     // Cass: RA 0-10, RD 10-20, LD 30-35 -> 20 min on the right
     expect(validate(s.rota!, s.settings, [c]).map((b) => b.message)).toEqual(['Cass plays 20 min on the right (prefers left).']);
   });
@@ -55,7 +56,8 @@ describe('preferred side', () => {
     const highs = await getHighs();
     const s = coachesSetup();
     const sides = { [idOf(s, 'Milo')]: 'L' as const, [idOf(s, 'Alex')]: 'R' as const, [idOf(s, 'George')]: 'L' as const };
-    const c = { ...(newConstraint('side_pref', s.settings) as SidePref), mode: 'hard', sides } as Constraint;
+    for (const p of s.settings.squad) if (sides[p.id]) p.side = sides[p.id];
+    const c = { ...(newConstraint('side_pref', s.settings) as SidePref), mode: 'hard' } as Constraint;
     const res = generate(highs, s.settings, [...s.constraints, c], { count: 3 });
     expect(res.status).toBe('ok');
     if (res.status !== 'ok') return;
@@ -70,11 +72,11 @@ describe('preferred side', () => {
   test('soft rotate + side preference: solver objective equals the validator score', async () => {
     const highs = await getHighs();
     const s = coachesSetup();
-    const sides = Object.fromEntries(s.settings.squad.map((p, i) => [p.id, i % 2 ? 'L' : 'R'])) as Record<string, 'L' | 'R'>;
+    s.settings.squad.forEach((p, i) => (p.side = i % 2 ? 'L' : 'R'));
     const cs: Constraint[] = [
       ...s.constraints,
       { ...(newConstraint('rotate', s.settings) as Rotate), weight: 'high' },
-      { ...(newConstraint('side_pref', s.settings) as SidePref), sides, weight: 'low' },
+      { ...(newConstraint('side_pref', s.settings) as SidePref), weight: 'low' },
     ];
     const model = buildModel(s.settings, cs);
     const r = highs.solve(model.lp, { output_flag: false, mip_rel_gap: 0, time_limit: 60 });

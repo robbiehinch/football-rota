@@ -26,6 +26,7 @@ export interface RotaFile {
     available?: boolean;
     allowed_positions?: string[];
     gk_only?: boolean;
+    side?: string;
   }>;
   rota?: Array<{
     slot?: number;
@@ -99,6 +100,7 @@ export function parseRotaFile(file: RotaFile): Setup {
       available: p.available ?? true,
       allowed_positions: p.allowed_positions ?? outfield,
       gk_only: p.gk_only ?? false,
+      ...(p.side === 'L' || p.side === 'R' ? { side: p.side } : {}),
     })),
   );
 
@@ -124,7 +126,38 @@ export function parseRotaFile(file: RotaFile): Setup {
       match.sub_points = [...new Set([...used, ...qBreaks])].sort((a, b) => a - b);
     }
   }
-  return { settings: { match, positions, squad }, constraints: file.constraints ?? [], rota };
+  return migrateSetup({ settings: { match, positions, squad }, constraints: file.constraints ?? [], rota });
+}
+
+/**
+ * Bring older setups up to date (idempotent):
+ * - a "Goal time" rule with its own player list -> those players get the GK
+ *   tick (others lose it, unless GK-only) and the list is cleared;
+ * - side preferences stored on the "Preferred side" rule -> moved onto players.
+ */
+export function migrateSetup(setup: Setup): Setup {
+  let squad = setup.settings.squad;
+  const gk = setup.settings.positions.filter((q) => q.role === 'GK').map((q) => q.code);
+  const constraints = setup.constraints.map((c) => {
+    if (c.kind === 'gk_share' && c.players.length) {
+      const listed = new Set(c.players);
+      squad = squad.map((p) => {
+        if (listed.has(p.id)) return { ...p, allowed_positions: [...new Set([...gk, ...p.allowed_positions])] };
+        if (p.gk_only) return p;
+        return { ...p, allowed_positions: p.allowed_positions.filter((code) => !gk.includes(code)) };
+      });
+      return { ...c, players: [] };
+    }
+    if (c.kind === 'side_pref' && c.sides) {
+      const sides = c.sides;
+      squad = squad.map((p) => (sides[p.id] ? { ...p, side: sides[p.id] } : p));
+      const rest = { ...c };
+      delete rest.sides;
+      return rest;
+    }
+    return c;
+  });
+  return { ...setup, settings: { ...setup.settings, squad }, constraints };
 }
 
 /** Allow GK for anyone who kept goal; mark players who only ever kept goal as GK-only. */
@@ -164,6 +197,7 @@ export function toRotaFile(setup: Setup, description = 'Rota Builder setup'): Ro
       available: p.available,
       allowed_positions: p.allowed_positions,
       gk_only: !!p.gk_only,
+      ...(p.side ? { side: p.side } : {}),
     })),
     constraints,
   };

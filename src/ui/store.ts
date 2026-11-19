@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import referenceJson from '../../rota.json';
 import { PRESETS } from '../model/constraints';
-import { parseRotaFile, type RotaFile, type Setup } from '../model/io';
+import { migrateSetup, parseRotaFile, type RotaFile, type Setup } from '../model/io';
 import { slotCount } from '../model/match';
 import type { Rota } from '../model/types';
 
@@ -23,7 +23,7 @@ function load(): Setup {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const s = JSON.parse(raw) as Setup;
-      if (s?.settings?.squad && s.settings.match && Array.isArray(s.constraints)) return s;
+      if (s?.settings?.squad && s.settings.match && Array.isArray(s.constraints)) return migrateSetup(s);
     }
   } catch {
     /* storage blocked or corrupt: fall back to defaults */

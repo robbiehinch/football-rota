@@ -5,7 +5,7 @@ export const KIND_LABELS: Record<ConstraintKind, string> = {
   even_time: 'Even playing time',
   minutes: 'Minimum / maximum minutes',
   role_balance: 'Role balance',
-  gk_share: 'Goalkeeper share',
+  gk_share: 'Goal time',
   role_blocks: 'Role blocks',
   position_stability: 'Position stability',
   max_bench: 'Max time on the bench',
@@ -25,7 +25,7 @@ export const KIND_HELP: Record<ConstraintKind, string> = {
   even_time: 'Total minutes for each player differ by at most N minutes.',
   minutes: 'Everyone (or chosen players) plays at least / at most this many minutes.',
   role_balance: 'Each outfield player gets at least X minutes in defence and in attack.',
-  gk_share: 'Only the listed players go in goal, each for at least / roughly equal time.',
+  gk_share: 'How goal time is shared among the players ticked “GK” on the Squad tab: a minimum each, and/or roughly equal.',
   role_blocks: 'Outfield players keep the same role (defence or attack) for a whole quarter.',
   position_stability: 'Keep position changes during a spell on the pitch to a minimum.',
   max_bench: 'Nobody sits out more than N minutes in a row.',
@@ -38,7 +38,7 @@ export const KIND_HELP: Record<ConstraintKind, string> = {
   spells: 'How many separate times each player comes on, e.g. at most 2 spells each.',
   max_on: 'Nobody plays more than N minutes without a break.',
   rotate: 'A player who stays on through a substitution point moves to a different outfield position (e.g. LD → RD).',
-  side_pref: 'Keep players on the side of the pitch they prefer (left or right).',
+  side_pref: 'Keep players on the side of the pitch they prefer. Set each player’s side (L / R) on the Squad tab.',
 };
 
 export const WEIGHT_LABELS: Record<Weight, string> = { low: 'Low', medium: 'Medium', high: 'High' };
@@ -60,7 +60,7 @@ export function newConstraint(kind: ConstraintKind, settings: Settings): Constra
     case 'role_balance':
       return { ...base(), kind, minDef: 10, minAtt: 10, players: [] };
     case 'gk_share':
-      return { ...base(), kind, players: [], minEach: null, evenWithin: settings.match.quarter_length_min };
+      return { ...base(), kind, players: [], minEach: settings.match.quarter_length_min, evenWithin: null };
     case 'role_blocks':
       return { ...base(), kind, exceptions: [] };
     case 'position_stability':
@@ -88,7 +88,7 @@ export function newConstraint(kind: ConstraintKind, settings: Settings): Constra
     case 'rotate':
       return { ...base('soft', 'medium'), kind, players: [] };
     case 'side_pref':
-      return { ...base('soft', 'medium'), kind, sides: {} };
+      return { ...base('soft', 'medium'), kind };
   }
 }
 
@@ -130,10 +130,14 @@ export function describeConstraint(c: Constraint, settings: Settings): string {
       return `${who}: at least ${c.minDef} min in defence and ${c.minAtt} min in attack`;
     }
     case 'gk_share': {
-      const parts = [c.players.length ? `Only ${names(settings, c.players)} in goal` : 'Anyone allowed can go in goal'];
-      if (c.minEach != null) parts.push(`each at least ${c.minEach} min`);
+      const keepers = c.players.length
+        ? c.players
+        : settings.squad.filter((p) => p.available && canPlayGk(p, settings.positions)).map((p) => p.id);
+      const parts: string[] = [];
+      if (c.minEach != null) parts.push(`each at least ${c.minEach} min in goal`);
       if (c.evenWithin != null) parts.push(`goal time within ${c.evenWithin} min of each other`);
-      return parts.join('; ');
+      const who = keepers.length ? `Goalkeepers (${names(settings, keepers)})` : 'Goalkeepers (none ticked yet)';
+      return parts.length ? `${who}: ${parts.join('; ')}` : `${who}: no limits set`;
     }
     case 'role_blocks':
       return c.exceptions.length
@@ -187,12 +191,12 @@ export function describeConstraint(c: Constraint, settings: Settings): string {
       return `${who} staying on change position at every sub`;
     }
     case 'side_pref': {
-      const left = Object.entries(c.sides).filter(([, v]) => v === 'L').map(([id]) => id);
-      const right = Object.entries(c.sides).filter(([, v]) => v === 'R').map(([id]) => id);
+      const left = settings.squad.filter((p) => p.side === 'L').map((p) => p.id);
+      const right = settings.squad.filter((p) => p.side === 'R').map((p) => p.id);
       const parts = [];
       if (left.length) parts.push(`${names(settings, left)} on the left`);
       if (right.length) parts.push(`${names(settings, right)} on the right`);
-      return parts.length ? `Keep ${parts.join('; ')}` : 'No side preferences set yet';
+      return parts.length ? `Keep ${parts.join('; ')}` : 'No sides set yet (set L / R on the Squad tab)';
     }
     case 'pin': {
       const where = c.position === 'BENCH' ? 'on the bench' : c.position === 'ON' ? 'on the pitch' : `in ${c.position}`;
@@ -215,7 +219,7 @@ export function referencedPlayers(c: Constraint): string[] {
     case 'rotate':
       return c.players;
     case 'side_pref':
-      return Object.keys(c.sides);
+      return [];
     case 'together':
     case 'apart':
       return [c.a, c.b];
@@ -241,7 +245,6 @@ export const PRESETS: Preset[] = [
       'Subs at 5, 10, 20, 30 and 35. Keeper changes at quarter breaks. Everyone within 5 minutes; one role per quarter; at least 10 min in defence and attack.',
     build: (settings) => {
       const gk = settings.squad.filter((p) => canPlayGk(p, settings.positions));
-      const keepers = gk.map((p) => p.id);
       const outfieldKeepers = gk.filter((p) => isOutfielder(p, settings.positions)).map((p) => p.id);
       const outfieldOnly = settings.squad
         .filter((p) => !canPlayGk(p, settings.positions) && isOutfielder(p, settings.positions))
@@ -250,7 +253,7 @@ export const PRESETS: Preset[] = [
       const slot = settings.match.slot_length_min;
       const constraints: Constraint[] = [
         { ...base(), kind: 'even_time', maxDiff: slot },
-        { ...base(), kind: 'gk_share', players: keepers, minEach: q, evenWithin: null },
+        { ...base(), kind: 'gk_share', players: [], minEach: q, evenWithin: null },
         { ...base(), kind: 'role_blocks', exceptions: [] },
         { ...base(), kind: 'role_balance', minDef: q, minAtt: q, players: outfieldOnly },
         { ...base(), kind: 'role_balance', minDef: slot, minAtt: slot, players: outfieldKeepers },

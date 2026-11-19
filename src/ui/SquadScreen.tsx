@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { groupColor } from '../model/colors';
-import { referencedPlayers } from '../model/constraints';
+import { newConstraint, referencedPlayers } from '../model/constraints';
 import type { Setup } from '../model/io';
 import { gkCodes, uid } from '../model/match';
 import type { Player } from '../model/types';
@@ -14,17 +13,36 @@ export function SquadScreen({ setup, update }: Props) {
   const { squad, positions } = setup.settings;
   const [newName, setNewName] = useState('');
   const [open, setOpen] = useState<string | null>(null);
-  const groups = [...new Set(squad.map((p) => p.group).filter(Boolean))];
   const gk = gkCodes(positions);
   const outfield = positions.filter((q) => q.role !== 'GK').map((q) => q.code);
 
   const setPlayer = (id: string, patch: Partial<Player>) =>
     update((s) => ({ ...s, settings: { ...s.settings, squad: s.settings.squad.map((p) => (p.id === id ? { ...p, ...patch } : p)) } }));
 
+  /** Set a preferred side; the first time, also switch on the "Preferred side" rule (as a preference). */
+  const setSide = (p: Player, side: 'L' | 'R' | undefined) =>
+    update((s) => {
+      const squad = s.settings.squad.map((x) => {
+        if (x.id !== p.id) return x;
+        const next = { ...x };
+        if (side) next.side = side;
+        else delete next.side;
+        return next;
+      });
+      let constraints = s.constraints;
+      if (side) {
+        const rule = constraints.find((c) => c.kind === 'side_pref');
+        if (!rule) constraints = [...constraints, newConstraint('side_pref', s.settings)];
+        else if (!rule.enabled) constraints = constraints.map((c) => (c === rule ? { ...c, enabled: true } : c));
+      }
+      return { ...s, constraints, settings: { ...s.settings, squad } };
+    });
+  const sideRule = setup.constraints.find((c) => c.kind === 'side_pref' && c.enabled);
+
   const add = () => {
     const name = newName.trim();
     if (!name) return;
-    const p: Player = { id: uid('p'), name, group: groups[0] ?? 'blue', available: true, allowed_positions: outfield };
+    const p: Player = { id: uid('p'), name, group: '', available: true, allowed_positions: outfield };
     update((s) => ({ ...s, settings: { ...s.settings, squad: [...s.settings.squad, p] } }));
     setNewName('');
   };
@@ -97,19 +115,37 @@ export function SquadScreen({ setup, update }: Props) {
                 </button>
               </div>
               <div className="squad-sub">
-                <span className="group-tag">
-                  <i className="dot" style={{ background: groupColor(p.group) }} />
-                  {p.group || 'no group'}
-                </span>
+                {!p.gk_only && (
+                  <>
+                    <span className="side-label">Side</span>
+                    <span className="side-pick" role="group" aria-label={`${p.name} preferred side`}>
+                      {(
+                        [
+                          ['L', 'L', 'Left'],
+                          [undefined, 'Either', 'Either side'],
+                          ['R', 'R', 'Right'],
+                        ] as const
+                      ).map(([v, label, title]) => (
+                        <button
+                          key={label}
+                          type="button"
+                          title={title}
+                          aria-label={title}
+                          className={p.side === v ? 'active' : ''}
+                          aria-pressed={p.side === v}
+                          onClick={() => setSide(p, v)}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </span>
+                  </>
+                )}
                 {p.gk_only && <span className="pill">GK only</span>}
                 {!p.available && <span className="pill warn">Not playing</span>}
               </div>
               {open === p.id && (
                 <div className="squad-more">
-                  <label className="field">
-                    <span>Group colour</span>
-                    <input list="groups" value={p.group} onChange={(e) => setPlayer(p.id, { group: e.target.value })} />
-                  </label>
                   <label className="check">
                     <input
                       type="checkbox"
@@ -151,11 +187,6 @@ export function SquadScreen({ setup, update }: Props) {
           );
         })}
       </ul>
-      <datalist id="groups">
-        {[...new Set([...groups, 'blue', 'yellow', 'red', 'green'])].map((g) => (
-          <option key={g} value={g} />
-        ))}
-      </datalist>
 
       <form
         className="add-row"
@@ -169,9 +200,18 @@ export function SquadScreen({ setup, update }: Props) {
           Add
         </button>
       </form>
-      <p className="muted small">
-        Tap ▾ to change a player's group colour or positions. Group colours are just labels you choose (e.g. blue, yellow).
-      </p>
+      <div className="card squad-help">
+        <p className="small">
+          <b>GK</b>: can go in goal. How goal time is shared is the <b>Goal time</b> rule on the Rules tab.
+        </p>
+        <p className="small">
+          <b>Side</b>: L or R to prefer the left or right of the pitch.{' '}
+          {sideRule
+            ? `Used by the Preferred side rule (${sideRule.mode === 'hard' ? 'Must' : 'Try to'}); change how strict on the Rules tab.`
+            : 'Setting one switches on the Preferred side rule (as a preference).'}
+        </p>
+        <p className="small">Tap ▾ to choose which positions a player can play, or to remove them.</p>
+      </div>
     </section>
   );
 }

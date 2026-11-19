@@ -466,8 +466,9 @@ select:focus-visible {
 .squad-sub {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
-  margin: 2px 0 0 54px;
+  margin: 4px 0 0 54px;
   font-size: 0.82rem;
   color: var(--muted);
 }
@@ -476,6 +477,9 @@ select:focus-visible {
   align-items: center;
   gap: 5px;
   margin-right: 4px;
+}
+.squad-help p {
+  margin: 4px 0;
 }
 .squad-more {
   border-top: 1px solid var(--border);
@@ -584,29 +588,38 @@ select:focus-visible {
   width: 100%;
 }
 
-.side-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin: 8px 0;
+.side-summary p {
+  margin: 6px 0;
 }
-.side-row {
-  display: grid;
-  grid-template-columns: 76px 1fr;
-  align-items: center;
-  gap: 8px;
-}
-.side-row .segmented {
-  margin: 2px 0;
-}
-.side-row.faded {
-  opacity: 0.5;
-}
-.side-name {
-  font-weight: 600;
+.side-pick {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+.side-pick button {
+  min-width: 34px;
+  min-height: 30px;
+  border: 0;
+  border-left: 1px solid var(--border);
+  background: var(--card);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0 6px;
+}
+.side-pick button:first-child {
+  border-left: 0;
+}
+.side-pick button.active {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.side-label {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-right: 2px;
 }
 
 /* Options */
