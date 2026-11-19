@@ -362,9 +362,10 @@ export function validate(rota: Rota, settings: Settings, constraints: Constraint
         break;
       }
       case 'side_pref':
-        for (const [pid, side] of Object.entries(c.sides)) {
-          const p = byId.get(pid);
-          if (!p?.available) continue;
+        for (const p of avail) {
+          const pid = p.id;
+          const side = p.side;
+          if (!side || p.gk_only) continue;
           const wrong: number[] = [];
           for (let s = 0; s < n; s++) {
             const code = tl[pid]?.[s];

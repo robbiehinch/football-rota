@@ -11,7 +11,8 @@ interface Props {
   compact?: boolean;
 }
 
-const KINDS = Object.keys(KIND_LABELS) as ConstraintKind[];
+/** Rule types offered when adding (group mix is kept only for older setups). */
+const KINDS = (Object.keys(KIND_LABELS) as ConstraintKind[]).filter((k) => k !== 'group_mix');
 const QUICK: ConstraintKind[] = ['gk_plan', 'spells', 'max_on', 'rotate', 'side_pref', 'apart', 'together', 'pin'];
 
 /** One dropdown per goalkeeper block (each quarter by default). */
@@ -333,10 +334,14 @@ function Editor({ c, settings, set }: { c: Constraint; settings: Settings; set: 
           <PlayerPicker settings={settings} value={c.players} onChange={(players) => set2({ players })} allLabel="none picked = every outfield player" />
         </>
       );
-    case 'gk_share':
+    case 'gk_share': {
+      const keepers = settings.squad.filter((p) => p.available && canPlayGk(p, settings.positions)).map((p) => p.name);
       return (
         <>
-          <PlayerPicker settings={settings} value={c.players} onChange={(players) => set2({ players })} allLabel="none picked = anyone ticked GK" />
+          <p className="small">
+            <b>Goalkeepers:</b> {keepers.join(', ') || 'none ticked yet'}
+          </p>
+          <p className="muted small">Who can go in goal is set with the GK ticks on the Squad tab.</p>
           <div className="grid2">
             <Field label="Each at least">
               <MinutesInput value={c.minEach} allowEmpty onChange={(v) => set2({ minEach: v })} step={step} max={total} />
@@ -347,6 +352,7 @@ function Editor({ c, settings, set }: { c: Constraint; settings: Settings; set: 
           </div>
         </>
       );
+    }
     case 'role_blocks': {
       const qb = quarterBreaks(m);
       const inner = slotBoundaries(m).filter((x) => !qb.includes(x));
@@ -477,40 +483,20 @@ function Editor({ c, settings, set }: { c: Constraint; settings: Settings; set: 
           </p>
         </>
       );
-    case 'side_pref':
+    case 'side_pref': {
+      const left = settings.squad.filter((p) => p.side === 'L').map((p) => p.name);
+      const right = settings.squad.filter((p) => p.side === 'R').map((p) => p.name);
       return (
-        <div className="side-list">
-          {settings.squad
-            .filter((p) => !p.gk_only)
-            .map((p) => {
-              const v = c.sides[p.id] ?? '';
-              const pick = (side: '' | 'L' | 'R') => {
-                const sides = { ...c.sides };
-                if (side) sides[p.id] = side;
-                else delete sides[p.id];
-                set2({ sides });
-              };
-              return (
-                <div key={p.id} className={`side-row ${p.available ? '' : 'faded'}`}>
-                  <span className="side-name">{p.name}</span>
-                  <div className="segmented small" role="group" aria-label={`${p.name} preferred side`}>
-                    {(
-                      [
-                        ['L', 'Left'],
-                        ['', 'Either'],
-                        ['R', 'Right'],
-                      ] as const
-                    ).map(([k, label]) => (
-                      <button key={label} type="button" className={v === k ? 'active' : ''} aria-pressed={v === k} onClick={() => pick(k)}>
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
+        <div className="side-summary">
+          <p className="small">
+            <b>Left:</b> {left.join(', ') || 'nobody'}
+            <br />
+            <b>Right:</b> {right.join(', ') || 'nobody'}
+          </p>
+          <p className="muted small">Set each player’s side with the L / R buttons on the Squad tab. Players with no side have no preference.</p>
         </div>
       );
+    }
     case 'pin': {
       const points = [0, ...slotBoundaries(m), total];
       return (

@@ -328,8 +328,10 @@ export function buildModel(settings: Settings, constraints: Constraint[], opts: 
         break;
       }
       case 'side_pref':
-        for (const [pid, side] of Object.entries(c.sides)) {
-          if (!pIndex.has(pid)) continue;
+        for (const p of avail) {
+          const pid = p.id;
+          const side = p.side;
+          if (!side) continue;
           for (const w of windows) {
             const wrong = sumX(pid, w.index, (code) => sideOf(code) !== 'C' && sideOf(code) !== side);
             if (!wrong.size) continue;
