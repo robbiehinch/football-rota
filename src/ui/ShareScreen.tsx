@@ -1,8 +1,9 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { parseRotaFile, toRotaFile, type RotaFile, type Setup } from '../model/io';
 import { slotCount } from '../model/match';
 import { hardBreaks, validate } from '../model/validate';
 import { rotationGraphBlob } from '../share/png';
+import { shareUrl } from '../share/link';
 import { whatsappText } from '../share/whatsapp';
 import { reference } from './store';
 import { ByTime, MinutesKeyView, RotationGraph, Shifts, SubsList } from './RotaViews';
@@ -44,11 +45,24 @@ async function copyText(text: string): Promise<boolean> {
 export function ShareScreen({ setup, replace, goOptions }: Props) {
   const [title, setTitle] = useState('Match rota');
   const [withSubs, setWithSubs] = useState(true);
+  const [withLink, setWithLink] = useState(true);
+  const [link, setLink] = useState('');
+  useEffect(() => {
+    let live = true;
+    shareUrl(setup).then((u) => live && setLink(u), () => live && setLink(''));
+    return () => {
+      live = false;
+    };
+  }, [setup]);
   const [flash, setFlash] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const { settings } = setup;
   const rota = setup.rota && setup.rota.length === slotCount(settings.match) ? setup.rota : null;
-  const text = useMemo(() => (rota ? whatsappText(rota, settings, title, withSubs) : ''), [rota, settings, title, withSubs]);
+  const text = useMemo(() => {
+    if (!rota) return '';
+    const t = whatsappText(rota, settings, title, withSubs);
+    return withLink && link ? `${t}\n\nOpen in the app: ${link}` : t;
+  }, [rota, settings, title, withSubs, withLink, link]);
   const hard = useMemo(() => (rota ? hardBreaks(validate(rota, settings, setup.constraints)) : []), [rota, settings, setup.constraints]);
 
   const say = (msg: string) => {
@@ -116,6 +130,10 @@ export function ShareScreen({ setup, replace, goOptions }: Props) {
               <input type="checkbox" checked={withSubs} onChange={(e) => setWithSubs(e.target.checked)} />
               Include who comes on and off at each change
             </label>
+            <label className="check small">
+              <input type="checkbox" checked={withLink} onChange={(e) => setWithLink(e.target.checked)} />
+              Add a link that opens this rota in the app
+            </label>
             <pre className="wa-preview">{text}</pre>
             <div className="row-btns">
               <button type="button" className="btn primary" onClick={async () => say((await copyText(text)) ? 'Copied. Paste it into WhatsApp.' : 'Could not copy.')}>
@@ -124,6 +142,34 @@ export function ShareScreen({ setup, replace, goOptions }: Props) {
               <a className="btn" href={`https://wa.me/?text=${encodeURIComponent(text)}`} target="_blank" rel="noreferrer">
                 Open WhatsApp
               </a>
+            </div>
+          </div>
+          <div className="card no-print">
+            <h2>Share a link</h2>
+            <p className="muted small">
+              The link holds this squad, match settings, rules and line-up. Another coach opens it, taps <b>Open</b>, and starts from your rota.
+              (It replaces their own setup on that phone, after asking.)
+            </p>
+            <div className="row-btns">
+              <button type="button" className="btn primary" disabled={!link} onClick={async () => say((await copyText(link)) ? 'Link copied.' : 'Could not copy.')}>
+                Copy link
+              </button>
+              {typeof navigator !== 'undefined' && 'share' in navigator && (
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={!link}
+                  onClick={async () => {
+                    try {
+                      await navigator.share({ title, text: `${title}: open it in Rota Builder`, url: link });
+                    } catch {
+                      /* cancelled */
+                    }
+                  }}
+                >
+                  Share…
+                </button>
+              )}
             </div>
           </div>
           <div className="card no-print">

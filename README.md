@@ -17,7 +17,7 @@ including the solver, runs in the browser, and the setup is saved in `localStora
 | **Rules panel** | On wide screens the rules sit in a panel down the right of every screen; on phones a "Rules" button opens them as a side drawer |
 | **Options** | Up to 5 distinct rotas, best first, each with Rotation / By time / Subs / Shifts views. Cells are coloured by each player's total minutes (with a key). The Subs view lists every change, who comes on for whom and who moves, and flags mid-quarter subs. *Shuffle* gives a different set. If nothing fits, it lists the rules that clash. *How many rotas fit?* counts them in the background: exact when it finishes, otherwise a lower bound |
 | **Edit** | Tap two cells in a column to swap (or drag on a computer); put a player in a position or on the bench. Moved cells are locked (padlock) and the rest of the rota **rebalances** against the rules, changing as little as possible; lock or unlock any cell; live red/amber checks; undo |
-| **Share** | WhatsApp text (optionally with a SUBS line at each change), PNG of the rotation graph, print view with the substitutions, export/import the setup as JSON |
+| **Share** | **Share link** that opens the same squad, rules and line-up in another coach's app (everything is packed, compressed, into the link: no server), WhatsApp text (optionally with a SUBS line at each change and the link), PNG of the rotation graph, print view with the substitutions, export/import the setup as JSON |
 
 On first open the app loads the coaches' current rota ([`rota.json`](rota.json)) with the
 **Coaches' current rules** preset.
@@ -62,7 +62,7 @@ src/solver/    pure solver module
   model.ts        builds the integer program (CPLEX LP text)
   solve.ts        generate(): options, ranking, shuffle, conflict explanation
   worker.ts       runs the solver in a Web Worker
-src/share/     WhatsApp text and PNG export
+src/share/     WhatsApp text, PNG export and share links (link.ts)
 src/ui/        React screens
 ```
 
